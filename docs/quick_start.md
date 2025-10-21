@@ -1,9 +1,3 @@
-
----
-
-## `docs/quick_start.md`（面向用户）
-
-```markdown
 # Quick Start（面向用户）
 
 > 目标：3 分钟跑起来一个 IApp（Jupyter / Code-Server / Shell）
