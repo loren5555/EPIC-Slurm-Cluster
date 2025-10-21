@@ -1,0 +1,8 @@
+---
+name: Prometheus
+category: Clusters
+description: Prometheus UI for epic
+url: http://epic-control-node:9090
+new_window: true
+metadata:
+  layout: "Tools"
