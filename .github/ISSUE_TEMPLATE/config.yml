@@ -1,0 +1,13 @@
+contact_links:
+  - name: 文档 / 使用手册（优先查阅）
+    url: https://<org>.github.io/<repo>/
+    about: 常见问题与入门说明在此处
+  - name: OOD 官方文档
+    url: "https://osc.github.io/ood-documentation/latest"
+    about: 与OOD相关的内容
+  - name: Batch Job Parameters
+    url: "https://slurm.schedmd.com/sbatch.html"
+    about: 自定义sbatch脚本所需的参数
+  - name: 全部 Issues
+    url: https://github.com/<org>/<repo>/issues
+    about: 查看已存在的问题与讨论

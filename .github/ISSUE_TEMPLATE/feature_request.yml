@@ -1,0 +1,88 @@
+name: Feature request / Enhancement
+description: Propose a new feature or an improvement for IApps, docs, or the platform
+title: "[Feature] <brief summary>"
+labels: ["type:feature", "needs-triage"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Where should this change apply?
+      options:
+        - IApp (Interactive Apps)
+        - Documentation (Docs/Wiki/Pages)
+        - OOD UI & navigation
+        - Observability (Grafana/Prometheus)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: If IApp, select applicable apps (multi-select)
+      multiple: true
+      options:
+        - new app
+        - code-server
+        - jupyter
+        - script
+        - tensorboard
+        - ttyd
+        - grafana
+        - prometheus
+        - not listed
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Background & motivation
+      description: What problem does this solve? Why is it important?
+      placeholder: |
+        Current pain point / use case / target users...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal & acceptance criteria
+      description: Describe expected behavior and “definition of done”
+      placeholder: |
+        - Add xxx form option / config
+        - Pass yyy parameter in submit.yml.erb
+        - Acceptance criteria:
+          * Submits on gpu-4070 and mounts /project
+          * Docs include a minimal example and screenshots
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or trade-offs
+      placeholder: Optional
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact assessment
+      description: Effects on users, performance, security, dependencies (Slurm/OOD/container image)
+      placeholder: Optional
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Sketches, screenshots, links, references
+      placeholder: Optional
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched existing issues to avoid duplicates
+          required: true
+        - label: I understand this request may be generalized during design

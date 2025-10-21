@@ -1,0 +1,68 @@
+name: Usage question / Configuration help
+description: Any question about usage, configuration, or best practices
+title: "[Question] <brief summary>"
+labels: ["type:question", "needs-triage"]
+body:
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - IApp usage
+        - Slurm parameters/queues
+        - OOD pages & menus
+        - Docs/tutorial lookup
+        - Observability (Grafana/Prometheus)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: Related IApp (if any)
+      options:
+        - code-server
+        - jupyter
+        - script
+        - tensorboard
+        - ttyd
+        - grafana
+        - prometheus
+        - not listed
+        - None
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: Environment info
+      description: Cluster/partition/node, etc. (if applicable)
+      placeholder: "epic / gpu-4070 / server-4070ts-2 ..."
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question details
+      description: What are you trying to do? What happened? What outcome do you expect?
+      placeholder: |
+        - Goal:
+        - Steps tried:
+        - Currently blocked at:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Related output / screenshots (optional)
+      description: IApp card logs, browser console, error messages, etc.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I checked existing Issues / Wiki / Docs
+          required: true

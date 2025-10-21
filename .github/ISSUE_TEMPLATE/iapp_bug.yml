@@ -1,50 +1,62 @@
-name: IApp 运行问题
-description: 反馈交互式应用（IApp）提交/运行/退出相关问题
-title: "[IApp] <请简述问题>"
-labels: ["area:iapp", "type:bug"]
+name: IApp runtime issue
+description: Report submission, runtime, or teardown problems for an Interactive App (IApp)
+title: "[IApp] <brief summary>"
+labels: ["area:iapp", "type:bug", "needs-triage"]
 body:
   - type: dropdown
     id: app
     attributes:
-      label: 受影响的 IApp
+      label: Affected IApp
       options:
-        - jupyter
         - code-server
-        - shell
+        - jupyter
+        - script
+        - tensorboard
+        - ttyd
+        - grafana
+        - prometheus
+        - not listed
     validations:
       required: true
-  - type: input
+
+  - type: dropdown
     id: cluster
     attributes:
-      label: 集群/分区
-      placeholder: "epic / gpu-4070 / cpu ..."
+      label: Cluster / partition
+      options:
+        - gpu-4070
+        - cpu
     validations:
       required: true
+
   - type: input
     id: jobid
     attributes:
-      label: Slurm 作业号（若已提交）
-      placeholder: "e.g. 1234567"
+      label: Slurm Job ID (if any)
+      placeholder: "e.g. 123"
+
   - type: textarea
     id: repro
     attributes:
-      label: 复现步骤
-      description: 尽可能最小复现
+      label: Steps to reproduce
+      description: Provide the smallest set of steps that reproduces the problem
       placeholder: |
-        1. 打开 OOD -> 交互式应用 -> Jupyter
-        2. 选择分区 gpu-4070, GRES=1
-        3. 点击提交后状态卡片显示...
+        1) OOD → Interactive Apps → Jupyter
+        2) Select partition gpu-4070, GRES=1
+        3) Submit; the session card shows ...
     validations:
       required: true
+
   - type: textarea
     id: logs
     attributes:
-      label: 关键信息/日志
-      description: 提供 IApp 作业输出、Slurm 输出、或浏览器报错
+      label: Relevant logs / outputs
+      description: IApp session output, Slurm output, browser console errors, screenshots, etc.
+
   - type: checkboxes
     id: agree
     attributes:
-      label: 行为确认
+      label: Pre-submission checks
       options:
-        - label: 我已搜索过现有 Issue
+        - label: I searched existing issues and found no duplicate
           required: true
