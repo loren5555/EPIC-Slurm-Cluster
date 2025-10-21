@@ -30,7 +30,6 @@ body:
         - grafana
         - prometheus
         - not listed
-        - None
     validations:
       required: true
 
