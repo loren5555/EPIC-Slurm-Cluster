@@ -1,7 +1,7 @@
 ---
 name: JupyterLab
 category: Interactive Apps
-subcategory: Servers
+subcategory: Editors
 role: batch_connect
 description: |
   This app will launch a Jupyter Notebook server on one or more nodes.

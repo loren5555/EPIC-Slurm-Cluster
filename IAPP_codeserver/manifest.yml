@@ -1,7 +1,7 @@
 ---
 name: Code Server
 category: Interactive Apps
-subcategory: Servers
+subcategory: Editors
 role: batch_connect
 description: |
   This app will launch a [VS Code] server using [Code Server].

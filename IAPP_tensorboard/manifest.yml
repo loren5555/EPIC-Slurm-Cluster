@@ -1,7 +1,7 @@
 ---
 name: Tensorboard
 category: Interactive Apps
-subcategory: Servers
+subcategory: Tools
 role: batch_connect
 description: |
   This app will launch a Tensorboard on one node.
