@@ -1,0 +1,7 @@
+---
+name: Shell
+category: Interactive Apps
+subcategory: Servers
+role: batch_connect
+description: |
+  This app will launch a shell through ttyd on target node.

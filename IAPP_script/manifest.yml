@@ -1,0 +1,7 @@
+---
+name: Script
+category: Interactive Apps
+subcategory: Tools
+role: batch_connect
+description: |
+  This app will run a specified script after launch, just like the jobs.

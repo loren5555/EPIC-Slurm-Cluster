@@ -1,0 +1,133 @@
+<%
+  require 'yaml'
+
+  partfile = '/etc/ood/config/site.d/partitions.yml'
+  parts    = File.exist?(partfile) ? YAML.safe_load(File.read(partfile)) : {}
+
+  DEFAULTS = { 'gpu_max' => 0, 'cpu_max' => 4, 'mem_max_gb' => 16 }
+  parts    = parts.transform_values { |cfg| DEFAULTS.merge(cfg || {}) }
+
+  def q(s)
+    s.to_s.gsub("'", "''")
+  end
+
+  # [ 'Label', 'value', data-...: ..., data-...: ..., ... ]
+  def part_option_line(name, cfg)
+    label   = (cfg['label'] || name).to_s # Label
+    part    = (cfg['partition'] || name).to_s # Partition
+    resource = (cfg['resource_type'] || "cpu").to_s # Resource type
+
+    cpu_max = cfg['cpu_max'].to_i
+    gpu_max = cfg['gpu_max'].to_i
+    mem_max = cfg['mem_max_gb'].to_i
+
+    data_pairs = []
+
+    data_pairs << "data-set-resource-partition: '#{part}'"
+    data_pairs << "data-set-resource-type: '#{resource}'"
+
+    data_pairs << "data-label-cpus: 'CPU Cores (1-#{cpu_max})'"
+    data_pairs << "data-max-cpus: #{cpu_max}"
+
+    # data_pairs << "data-label-memory: 'Memory (GB, 1-#{mem_max})'"
+    # data_pairs << "data-max-memory: #{mem_max}"
+
+    if gpu_max <= 0
+      data_pairs << "data-hide-gpus: true"
+      data_pairs << "data-set-gpus: 0"
+    else
+      data_pairs << "data-hide-gpus: false"
+      data_pairs << "data-label-gpus: 'Number of GPUs (0-#{gpu_max})'"
+      data_pairs << "data-max-gpus: #{gpu_max}"
+    end
+
+    # 拼成一行 flow sequence
+    "[ '#{q(label)}', '#{q(part)}', #{data_pairs.join(', ')} ]"
+  end
+
+  generated_options = parts.map { |name, cfg| part_option_line(name, cfg) }
+                           .join("\n      - ")
+%>
+
+cluster:
+  - "epic"
+
+form:
+  - partition_selection
+  - resource_partition
+  - resource_type
+  - cpus
+  - gpus
+  # - memory
+  - bc_num_hours
+  - working_dir
+  # - modules
+  - auto_accounts
+  - bc_email_on_started
+
+attributes:
+  partition_selection:
+    display: false
+    label: "Select Partition"
+    widget: select
+    options:
+      - <%= generated_options %>
+    value: "cpu"
+
+  resource_partition:
+    display: true
+    label: "Resource Partition"
+    widget: "text_field"
+    readonly: true
+    value: "cpu"
+
+  resource_type:
+    display: true
+    widget: "text_field"
+    readonly: true
+    value: "cpu"
+
+  cpus:
+    label: "CPU Cores"
+    widget: "number_field"
+    value: 4
+    min: 1
+    max: 128
+    display: true
+
+  gpus:
+    label: "Number of GPUs"
+    widget: "number_field"
+    value: 0
+    min: 0
+    max: 8
+    display: true
+
+  memory:
+    label: "Memory (GB)"
+    widget: "number_field"
+    value: 128
+    min: 0
+    max: 1024
+    display: true
+
+  bc_num_hours:
+    label: "Number of hours (max 24h)"
+    value: 1
+    min: 0
+    max: 24
+    display: true
+
+  working_dir:
+    label: "Working Directory"
+    widget: "path_selector"
+    directory: "<%= ENV['HOME'] %>"
+    value: "<%= ENV['HOME'] %>"
+    display: true
+
+  modules:
+    label: "Modules to Load (optional)"
+    widget: text_field
+    value: ""
+    # help: "Enter modules separated by spaces, e.g., 'cuda/12.4 python/3.11'. Leave empty if not needed."
+    display: true

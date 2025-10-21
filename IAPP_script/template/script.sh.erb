@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "TIMING - Starting main script at: $(date)"
+
+exec "/bin/bash" "<%= context.script %>" \
+    --JobID=${SLURM_JOB_ID} \
+    --ID=${SLURM_ARRAY_TASK_ID} \
+    --host=$(hostname) \
+    --workdir=<%= context.working_dir %> 

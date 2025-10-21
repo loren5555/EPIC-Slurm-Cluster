@@ -1,0 +1,29 @@
+---
+batch_connect:
+  template: "basic"
+
+script:
+  # copy_environment: true
+
+  # Slurm parameters
+  queue_name: "<%= resource_partition %>"
+  # wall_time: <%= hours.to_i * 3600 %>
+
+  native:
+    - "--cpus-per-task=<%= cpus_per_task.to_i %>"  # CPU cores
+
+    # GPU cards if > 0
+    <%- g = gpus.to_i -%>
+    <%- if g > 0 -%>
+    - "--gres=gpu:<%= g %>"
+    <%- end -%>
+    
+    # Memory
+    # <% unless memory.blank? %>
+    # - "--mem=<%= memory.to_i %>G"
+    # <% end %>
+
+    - "--array=<%= array %>"
+    - "--error=logs/%A-%a.err"
+    - "--output=logs/%A-%a.out"
+    

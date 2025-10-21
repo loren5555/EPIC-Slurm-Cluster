@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "TIMING - Starting main script at: $(date)"
+
+# 在前台启动前，先写出连接信息（供 OOD 连接视图使用）
+host="$(hostname -f)"
+: "${port:?port not set by before.sh.erb}"
+uname="${uname:-}"
+pw="${password:-}"
+
+cat > connection.yml <<EOF
+---
+host: ${host}
+port: ${port}
+uname: ${uname}
+password: ${pw}
+websocket: true
+EOF
+
+echo "TIMING - Launching ttyd at: $(date)"
+
+exec "ttyd" \
+    --port=${port} \
+    --writable \
+    --auth-header X-Forwarded-User \
+    "/bin/bash"
+

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "TIMING - Starting main script at: $(date)"
+
+# 选择 jupyter 命令：优先 jupyter-lab，回退到 'jupyter lab'
+jupyter_bin="$(command -v jupyter-lab || true)"
+if [[ -z "${jupyter_bin}" ]]; then
+  jupyter_bin="$(command -v jupyter)"
+  cmd=("${jupyter_bin}" "lab")
+else
+  cmd=("${jupyter_bin}")
+fi
+
+# 校验配置文件
+if [[ -z "${CONFIG_FILE:-}" || ! -f "${CONFIG_FILE}" ]]; then
+  echo "[ERROR] CONFIG_FILE missing: ${CONFIG_FILE:-<unset>}" >&2
+  exit 2
+fi
+echo "Using: ${cmd[*]} --config=${CONFIG_FILE}"
+
+# 在前台启动前，先写出连接信息（供 OOD 连接视图使用）
+host="$(hostname -f)"
+: "${port:?port not set by before.sh.erb}"
+pw="${password:-}"
+
+cat > connection.yml <<EOF
+---
+host: ${host}
+port: ${port}
+password: ${pw}
+EOF
+
+echo "TIMING - Launching Jupyter (foreground) at: $(date)"
+
+exec "${cmd[@]}" --config="${CONFIG_FILE}"
