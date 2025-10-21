@@ -1,0 +1,50 @@
+name: IApp 运行问题
+description: 反馈交互式应用（IApp）提交/运行/退出相关问题
+title: "[IApp] <请简述问题>"
+labels: ["area:iapp", "type:bug"]
+body:
+  - type: dropdown
+    id: app
+    attributes:
+      label: 受影响的 IApp
+      options:
+        - jupyter
+        - code-server
+        - shell
+    validations:
+      required: true
+  - type: input
+    id: cluster
+    attributes:
+      label: 集群/分区
+      placeholder: "epic / gpu-4070 / cpu ..."
+    validations:
+      required: true
+  - type: input
+    id: jobid
+    attributes:
+      label: Slurm 作业号（若已提交）
+      placeholder: "e.g. 1234567"
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 尽可能最小复现
+      placeholder: |
+        1. 打开 OOD -> 交互式应用 -> Jupyter
+        2. 选择分区 gpu-4070, GRES=1
+        3. 点击提交后状态卡片显示...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 关键信息/日志
+      description: 提供 IApp 作业输出、Slurm 输出、或浏览器报错
+  - type: checkboxes
+    id: agree
+    attributes:
+      label: 行为确认
+      options:
+        - label: 我已搜索过现有 Issue
+          required: true
