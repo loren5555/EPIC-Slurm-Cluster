@@ -5,6 +5,6 @@ subcategory: Servers
 role: batch_connect
 description: |
   This app will launch a shell through ttyd on target node.
-metedata:
-  layout: Interactive Apps
+metadata:
+  layout: "Interactive Apps"
   

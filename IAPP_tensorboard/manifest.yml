@@ -6,6 +6,6 @@ role: batch_connect
 description: |
   This app will launch a Tensorboard on one node.
 icon: icon.png
-metedata:
+metadata:
   layout: Tools
   
