@@ -1,10 +1,10 @@
 # Quick Start（面向用户）
 
-> 目标：3 分钟跑起来一个 IApp（Jupyter / Code-Server / Shell）
+> 目标：3 分钟跑起来一个任务
 
 ## 1) 登录与入口
-- 打开 OOD 门户：<OOD_URL>
-- “Interactive Apps” 里选择需要的应用：**Jupyter** / **Code-Server** / **Shell**
+- 打开 OOD 门户：[Open Ondemand](222.20.76.128)
+- “Interactive Apps” 里选择需要的应用：**Jupyter** / **Code-Server** / **Shell** / **Script**
 
 ## 2) 提交作业（Slurm）
 表单里按需填写：
@@ -21,11 +21,11 @@
 - `/home/<user>`：**容量吃紧**，将来会转为**缓存盘**。**不要**长存大文件/数据集。  
 - `/workspace/<user>/`（RAID0，无备份）：用于大文件、缓存、模型/中间结果等。**务必自行备份重要成果**。  
   推荐组织：
-    /workspace/<user>/
-    ├─ data/ # 数据集（尽量只读）
-    ├─ runs/ # 训练输出（checkpoints/logs/tensorboard）
-    ├─ envs/ # venv/conda
-    └─ projects/<课题>/<repo>/
+    /workspace/\<user>/ \
+        ├─ data/ # 数据集（尽量只读）\
+        ├─ runs/ # 训练输出（checkpoints/logs/tensorboard）\
+        ├─ envs/ # venv/conda \
+        └─ projects/<课题>/\<repo>/ 
 
 ## 4) 资源占用与排障速查
 - 系统资源：`htop`、`free -h`、`df -h`

@@ -61,7 +61,8 @@ form:
   - bc_num_hours
   - working_dir
   - auto_accounts
-  - bc_email_on_started
+  - mail_user
+  - mail_type
 
 attributes:
   partition_selection:
@@ -129,3 +130,18 @@ attributes:
     value: ""
     # help: "Enter modules separated by spaces, e.g., 'cuda/12.4 python/3.11'. Leave empty if not needed."
     display: true
+
+  mail_user:
+    label: "Notification e-mail"
+    help:  "Default is your campus e-mail; you may add multiple, comma-separated."
+    value: "<%= ENV['OOD_USER_EMAIL'] || Etc.getlogin + 'hust.edu.cn' %>"
+
+  mail_type:
+    label: "Notify on"
+    widget: "select"
+    options:
+      - ["End & Fail (recommended)", "END,FAIL"]
+      - ["Start, End & Fail", "BEGIN,END,FAIL"]
+      - ["All events", "ALL"]
+      - ["Disable", ""]
+    value: "END,FAIL"

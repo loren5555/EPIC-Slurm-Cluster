@@ -1,6 +1,7 @@
 # Developer Doc（深度维护者 / 开发者）
 
-> 面向后续维护者：IApp/配置开发、提交与发布、规范与最佳实践。
+> 面向后续维护者：IApp/配置开发、提交与发布、规范与最佳实践。\
+> 弄不动了，自行查阅，以后再说。[Link](https://www.notion.so/infinity-frontier/A100-26d835def60d8002a8a5f4a9a657a04c?source=copy_link)
 
 ## 1) 仓库结构（建议）
     repo/
@@ -27,11 +28,11 @@
 >     - "--mail-type=BEGIN,END,FAIL"
 >     - "--mail-user=<your@email>"
 > ```
-> （平台当前默认不强制开启邮件，以 Issues 流程为主。）
+
 
 ## 3) 文档维护规范（超轻量）
-- 仅用 **GFM**（GitHub Flavored Markdown），不引入构建链。
-- **一页尽量讲清**；相同功能合并到一页，避免碎片化。
+- 使用Markdown。
+- 相同功能合并到一页，避免碎片化。
 - 每次改 IApp/策略，**同步改 docs** 对应段落；PR 里一起评审。
 
 ## 4) 监控与调优（基础）
@@ -41,7 +42,7 @@
 
 ## 5) 禁止事项（再次强调）
 - **严禁**更改/更新任意 NVIDIA 驱动、CUDA、Fabric Manager 等底层组件。
-- 未公告前**不要**在系统级安装 Docker / runtime（后续统一上线）。
+- 未公告前**不要**在系统级安装 Docker / runtime（后续统一上线，大概会）。
 
 ## 6) Roadmap（示例，按需维护）
 - [ ] 统一存储落地与迁移指引

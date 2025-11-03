@@ -22,3 +22,6 @@ script:
     # <% unless memory.blank? %>
     # - "--mem=<%= memory.to_i %>G"
     # <% end %>
+
+    - "--mail-type=<%= mail_type%>"
+    - "--mail-user=<%= (mail_user.presence) %>"
