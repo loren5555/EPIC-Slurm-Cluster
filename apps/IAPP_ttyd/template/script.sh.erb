@@ -24,5 +24,6 @@ exec "ttyd" \
     --port=${port} \
     --writable \
     --auth-header X-Forwarded-User \
+    --cwd <%= context.working_dir %> \
     "/bin/bash"
 

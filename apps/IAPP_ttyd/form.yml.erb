@@ -118,9 +118,8 @@ attributes:
     display: true
 
   working_dir:
-    widget: "path_selector"
-    label: "Working Directory"
-    directory: "<%= ENV['HOME'] %>"
+    widget: "text_field"
+    label: "Working directory on target node."
     value: "<%= ENV['HOME'] %>"
     display: true
 
@@ -133,15 +132,16 @@ attributes:
 
   mail_user:
     label: "Notification e-mail"
-    help:  "Default is your campus e-mail; you may add multiple, comma-separated."
+    help:  "E-mail for receiving notifications."
     value: "<%= ENV['OOD_USER_EMAIL'] || Etc.getlogin + 'hust.edu.cn' %>"
 
   mail_type:
     label: "Notify on"
     widget: "select"
     options:
-      - ["End & Fail (recommended)", "END,FAIL"]
-      - ["Start, End & Fail", "BEGIN,END,FAIL"]
+      - ["None", "NONE"]
+      - ["Begin, End & Fail (Recommended)", "BEGIN,END,FAIL"]
+      - ["Begin", "BEGIN"]
+      - ["End & Fail", "END,FAIL"]
       - ["All events", "ALL"]
-      - ["Disable", ""]
-    value: "END,FAIL"
+    value: "NONE"

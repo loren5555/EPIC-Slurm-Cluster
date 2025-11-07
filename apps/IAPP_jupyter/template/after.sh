@@ -8,7 +8,7 @@ set -euo pipefail
 : "${port:?port is not set}"
 
 # Make timeout configurable (default 120s instead of 60s)
-WAIT_TIMEOUT="${WAIT_TIMEOUT:-3600}"
+WAIT_TIMEOUT="${WAIT_TIMEOUT:-120}"
 
 echo "Waiting for Jupyter server to open port ${port} on ${host} ..."
 echo "TIMING - Starting wait at: $(date)"
