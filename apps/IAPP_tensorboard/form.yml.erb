@@ -26,9 +26,9 @@ attributes:
     display: true
 
   logdir:
-    label: "Tensorboard Log Directory"
-    widget: "path_selector"
+    label: "Tensorboard Log Dir"
+    help: "Log directory on target node."
+    widget: "text_field"
     required: true
     display: true
     directory: "<%= ENV['HOME'] %>"
-    cacheable: false
