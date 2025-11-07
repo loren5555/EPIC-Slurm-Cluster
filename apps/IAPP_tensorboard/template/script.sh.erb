@@ -15,6 +15,6 @@ port: ${port}
 password: ${pw}
 EOF
 
-echo "TIMING - Launching Jupyter (foreground) at: $(date)"
+echo "TIMING - Launching Tensorboard (foreground) at: $(date)"
 
 exec "tensorboard" --logdir="<%= context.logdir %>" --port=${port} --bind_all
