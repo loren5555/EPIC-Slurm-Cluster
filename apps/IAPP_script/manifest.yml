@@ -5,6 +5,15 @@ subcategory: Tools
 role: batch_connect
 description: |
   This app will run a specified script after launch, just like the jobs.
+  Access passed variables as below: 
+
+  ```bash
+  #! /bin/bash
+  echo "Job ID: $0"
+  echo "Task ID: $1"
+  echo "Host: $2"
+  echo "Work Dir: $3"
+  ```
 metadata:
   layout: Tools
   

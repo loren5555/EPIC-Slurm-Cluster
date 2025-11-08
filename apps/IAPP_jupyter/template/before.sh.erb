@@ -1,8 +1,6 @@
-#!/bin/bash
-# This script is sourced before script.sh is forked. Based on OOD's official example.
-# We add: PATH (/opt), optional Lmod init, optional Conda activation, working_dir.
+#!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
 # --- (A) Export 'module' if present (same as official) ---
 [[ $(type -t module) == "function" ]] && export -f module

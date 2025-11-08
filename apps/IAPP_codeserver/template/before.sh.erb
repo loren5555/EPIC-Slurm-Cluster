@@ -1,7 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
 # Export the module function if it exists
 [[ $(type -t module) == "function" ]] && export -f module
 
-export PATH="/opt/code-server/code-server-4.104.2-linux-amd64/bin:$PATH"
+# export PATH="/opt/code-server/code-server-4.104.2-linux-amd64/bin:$PATH"
 
 # Find available port to run server on
 export port=$(find_port ${host})
@@ -12,4 +16,4 @@ export host="${host}"
 # Generate SHA1 encrypted password (requires OpenSSL installed)
 export password="$(create_passwd 16)"
 
-export code_server_version="4.104.2"
+export code_server_version=$(code-server -v | head -n1 | cut -d' ' -f1)

@@ -45,10 +45,22 @@ if [[ -f "$CPP_FILE" ]]; then
 echo "$(date): Started code-server"
 echo ""
 
+# Preinstall Extentions
+# EXTS=(
+#     ms-python.python
+#     ms-python.vscode-pylance
+#     ms-python.debugpy
+# )
+# for ext in ${EXTS[@]};
+# do
+#     code-server --install-extension $ext
+# done
+
 code-server \
     --auth="password" \
     --bind-addr="0.0.0.0:${port}" \
     --disable-telemetry \
+    --disable-update-check \
     --ignore-last-opened \
     --user-data-dir="$CODE_SERVER_DATAROOT" \
     --log debug \

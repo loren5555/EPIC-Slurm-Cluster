@@ -63,7 +63,8 @@ form:
   - working_dir
   # - modules
   - auto_accounts
-  - bc_email_on_started
+  - mail_user
+  - mail_type
 
 attributes:
   partition_selection:
@@ -112,16 +113,17 @@ attributes:
     display: true
 
   bc_num_hours:
-    label: "Number of hours (max 24h)"
+    label: "Number of hours (max 336h, 14 days)"
     value: 1
     min: 0
-    max: 24
+    max: 336
     display: true
+
 
   working_dir:
     label: "Working Directory"
-    widget: "path_selector"
-    directory: "<%= ENV['HOME'] %>"
+    widget: "text_field"
+    label: "Working directory on target node."
     value: "<%= ENV['HOME'] %>"
     display: true
 
@@ -131,3 +133,19 @@ attributes:
     value: ""
     # help: "Enter modules separated by spaces, e.g., 'cuda/12.4 python/3.11'. Leave empty if not needed."
     display: true
+
+  mail_user:
+    label: "Notification e-mail"
+    help:  "E-mail for receiving notifications."
+    value: "<%= ENV['OOD_USER_EMAIL'] || Etc.getlogin + '@hust.edu.cn' %>"
+
+  mail_type:
+    label: "Notify on"
+    widget: "select"
+    options:
+      - ["None", "NONE"]
+      - ["Begin, End & Fail (Recommended)", "BEGIN,END,FAIL"]
+      - ["Begin", "BEGIN"]
+      - ["End & Fail", "END,FAIL"]
+      - ["All events", "ALL"]
+    value: "NONE"

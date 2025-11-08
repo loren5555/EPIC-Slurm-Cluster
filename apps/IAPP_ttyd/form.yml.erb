@@ -111,11 +111,12 @@ attributes:
     display: true
 
   bc_num_hours:
-    label: "Number of hours (max 24h)"
+    label: "Number of hours (max 336h, 14 days)"
     value: 4
     min: 0
-    max: 24
+    max: 336
     display: true
+
 
   working_dir:
     widget: "text_field"
@@ -133,7 +134,7 @@ attributes:
   mail_user:
     label: "Notification e-mail"
     help:  "E-mail for receiving notifications."
-    value: "<%= ENV['OOD_USER_EMAIL'] || Etc.getlogin + 'hust.edu.cn' %>"
+    value: "<%= ENV['OOD_USER_EMAIL'] || Etc.getlogin + '@hust.edu.cn' %>"
 
   mail_type:
     label: "Notify on"
