@@ -63,6 +63,7 @@ form:
   - auto_accounts
   - mail_user
   - mail_type
+  - extra_sbatch
 
 attributes:
   partition_selection:
@@ -146,3 +147,10 @@ attributes:
       - ["End & Fail", "END,FAIL"]
       - ["All events", "ALL"]
     value: "NONE"
+
+  
+  extra_sbatch:
+    label: "Additional Arguments"
+    widget: text_field
+    value: ""
+    help: "Leave empty unless you know what you are doing!"

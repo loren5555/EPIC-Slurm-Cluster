@@ -7,6 +7,8 @@ form:
   - bc_num_hours
   - logdir
   - auto_accounts
+  - extra_sbatch
+
 
 attributes:
   resource_partition:
@@ -32,3 +34,9 @@ attributes:
     required: true
     display: true
     directory: "<%= ENV['HOME'] %>"
+
+  extra_sbatch:
+    label: "Additional Arguments"
+    widget: text_field
+    value: ""
+    help: "Leave empty unless you know what you are doing!"

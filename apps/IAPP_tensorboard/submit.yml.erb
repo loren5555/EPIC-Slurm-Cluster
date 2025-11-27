@@ -5,3 +5,4 @@ batch_connect:
 script:
   native:
     - "--cpus-per-task=<%= cpus.to_i %>"  # CPU cores
+    - "<%= extra_sbatch %>"
