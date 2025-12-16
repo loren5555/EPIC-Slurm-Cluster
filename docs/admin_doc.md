@@ -69,6 +69,8 @@ ssh -N -L 8443:192.168.100.2:443 maintain@222.20.76.74
 
 统一在管理端执行用户创建、组分配、SSH Key 下发等。
 
+[用户ID、组ID、统计账户表](id_table.md)
+
 [《管理员新增用户说明》](https://infinity-frontier.notion.site/28c835def60d8020b05cf1c03a7aff2a)
 
 
