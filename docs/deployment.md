@@ -32,7 +32,7 @@
         envs_dirs:
             - /workspace/envs/groupname/username/conda_envs
         pkgs_dirs:
-            - /workspace/.conda/pkgs
+            - /workspace/.conda-cache/pkgs
         auto_activate_base: false
         auto_update_conda: false
 
