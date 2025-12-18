@@ -1,5 +1,7 @@
 # EPIC Cluster — Open OnDemand Guide
 
+# <span style="color:red;font-weight:bold;">【重要·必看】[A100服务器使用须知](./deployment.md)</span>
+
 > **快速链接**
 > - 🧭 Quick Start（面向用户）：[quick_start](./quick_start.md)
 > - 🛠 Admin Doc（管理员）：[admin_doc](./admin_doc.md)
@@ -15,7 +17,7 @@
 ## 当前重要提示
 > ⚠️ 请务必阅读并遵守以下约束
 
-1. **/home 空间紧张**：后续可能切换到统一存储，当前 `/home` 未来将作为**缓存盘**使用。请将重要/大数据放入数据盘目录，做好迁移准备。
+1. **/home 空间紧张**：`/home`仅用于存储代码与较小的环境。请将重要/大数据放入数据盘目录。
 2. **禁止修改驱动/底层 NVIDIA 组件**：严禁在服务器上在线安装/更新任何 NVIDIA 相关驱动、CUDA、NVIDIA Fabric Manager 等。违者可能导致**硬件锁死**与不可恢复风险。
 3. **`/workspace` 为 RAID0、无备份**：仅用于缓存/临时/可再生成数据。重要成果请自行异地/云盘备份。
 4. **BMC 控制台需 SSH 转发**：  

@@ -8,10 +8,9 @@
 - Metrics：exporters + **Prometheus** + **Grafana**
 - 其它：反代/证书、SSH/BMC
 
-> 当前策略：**无配额**；CPU 不排队、GPU 排队；内存/磁盘无硬限（依赖自觉与监控告警）。
+> 当前策略： `/home` 限制20G；CPU 不排队、GPU 排队；内存无硬限。
 
 ## 2) 常用服务与启停（示例）
-> 具体服务名/路径依据你的发行版与部署而定，请按实际调整。
 
 ```bash
 # OOD Web
@@ -32,29 +31,23 @@ sudo systemctl status grafana-server
 
 ## 3) 日志与排障
 
-Slurm：/var/log/slurm/*.log（如 slurmctld.log、slurmdbd.log）
+Slurm：`/var/log/slurm/*.log`（如 slurmctld.log、slurmdbd.log）
 
-OOD：/var/log/ondemand-nginx/
+OOD：`/var/log/ondemand-nginx/`
 
-Web：/var/log/apache2/
+Web：`/var/log/apache2/`
 
-用户会话（Nginx per-user）：/var/log/ondemand-nginx/\<user>/*
+用户会话（Nginx per-user）：`/var/log/ondemand-nginx/<user>/*`
 
 Prometheus / Grafana：根据安装路径查看 logs/
 
-建议：
-
-配置 logrotate，周期性压缩归档。
-
-监控磁盘使用（尤其 /home、/var、/workspace）。
-
 ## 4) 存储与配额现状
 
-/home：吃紧，后续迁至统一存储（当前定位为缓存盘）。
+/home：共688G，限制20GB。
 
-/workspace：RAID0 无备份，只放可再生/非关键数据。
+/workspace：共14T RAID0 无备份，只放可再生/非关键数据。
 
-用户沟通要点：请自行异地备份；重要成果切勿只放在 /workspace。
+/data：NFS，共28T 存放大型数据集与模型权重。
 
 ## 5) BMC 面板访问
 

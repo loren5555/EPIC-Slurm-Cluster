@@ -1,6 +1,6 @@
 # EPIC Cluster · Open OnDemand
 
-# <span style="color:red;font-weight:bold;">【重要·必看】[A100服务器部署须知](./docs/deployment.md)</span>
+# <span style="color:red;font-weight:bold;">【重要·必看】[A100服务器使用须知](./docs/deployment.md)</span>
 
 
 本仓库统一承载：**文档、Issues（反馈/需求/问答）、IApp 配置与开发**。  
