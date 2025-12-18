@@ -59,7 +59,7 @@ form:
   - cpus
   - gpus
   - bc_num_hours
-  - working_dir
+  - target_path
   - auto_accounts
   - mail_user
   - mail_type
@@ -118,8 +118,7 @@ attributes:
     max: 336
     display: true
 
-
-  working_dir:
+  target_path:
     widget: "text_field"
     label: "Working directory on target node."
     value: "<%= ENV['HOME'] %>"
