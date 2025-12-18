@@ -3,7 +3,7 @@
 > 目标：3 分钟跑起来一个任务
 
 ## 1) 登录与入口
-- 打开 OOD 门户：[Open Ondemand](222.20.76.128)
+- 打开 OOD 门户：[Open Ondemand](http://222.20.76.128)
 - “Interactive Apps” 里选择需要的应用：**Jupyter** / **Code-Server** / **Shell** / **Script**
 
 ## 2) 提交作业（Slurm）
