@@ -17,6 +17,8 @@
 
    - 通过使用 Interactive App 中的 Code Server、Jupyter Lab、Shell等方式对部署到计算节点的代码进行调试。主要做可行性调试，最好不要跑重负载任务。
 
+   - <span style="color:red;font-weight:bold;"> 通过使用 Job Composer、Script等方式进行训练等长时任务，详细说明见：[Job Doc](./sbatch.md)。 </span>
+
    - 提交的任务将根据CPU占用率、GPU占用率等任务属性，根据select/cons_tres(Slurm默认的优先级计算算法)进行排队。
 
 ## 4. 环境管理

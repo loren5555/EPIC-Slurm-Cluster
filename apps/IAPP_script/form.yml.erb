@@ -35,18 +35,11 @@
     if gpu_max <= 0
       data_pairs << "data-label-gpus-per-task: 'Number of GPUs for one task (0-#{gpu_max})'"
       data_pairs << "data-hide-gpus-per-task: true"
-      data_pairs << "data-min-gpus-per-task: 0"
       data_pairs << "data-set-gpus-per-task: 0"
-      data_pairs << "data-label-bc-num-hours: 'Number of hours (max 336h, 14 days)'"
-      data_pairs << "data-max-bc-num-hours: 336"
     else
       data_pairs << "data-hide-gpus-per-task: false"
-      data_pairs << "data-label-gpus-per-task: 'Number of GPUs for one task (1-#{gpu_max})'"
+      data_pairs << "data-label-gpus-per-task: 'Number of GPUs for one task (0-#{gpu_max})'"
       data_pairs << "data-max-gpus-per-task: #{gpu_max}"
-      data_pairs << "data-min-gpus-per-task: 1"
-      data_pairs << "data-set-gpus-per-task: 1"
-      data_pairs << "data-label-bc-num-hours: 'Number of hours (max 32h)'"
-      data_pairs << "data-max-bc-num-hours: 32"
     end
 
     # 拼成一行 flow sequence
@@ -78,7 +71,7 @@ form:
 attributes:
   partition_selection:
     display: false
-    label: "Select Partition (CPU/GPU)"
+    label: "Select Partition"
     widget: select
     options:
       - <%= generated_options %>
