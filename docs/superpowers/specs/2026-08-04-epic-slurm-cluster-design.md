@@ -9,7 +9,7 @@
 
 1. 统一管理各主机上的 Linux 用户、UID/GID 与 SSH 公钥。
 2. 使用一个 Slurm 集群实现资源登记、任务排队与 GPU/CPU 分配。
-3. 保留两种主机使用模式：受管控计算节点通过 Open OnDemand 使用；自由实验主机既可直接 SSH，也可提交 Slurm 作业。
+3. 保留两种主机使用模式：受管控 GPU 节点以 Open OnDemand/Slurm 计算为主，同时允许公钥 SSH 开发但禁止登录会话直接使用 GPU；自由实验主机既可直接 SSH，也可提交 Slurm 作业。
 4. 每台主机使用独立本地存储，不将用户目录或运行环境依赖于网络存储。
 5. 复用现有 `EPIC-Slurm-Cluster` 仓库中的文档和 OOD IApp。
 
@@ -35,7 +35,7 @@
 └── 平时不运行 OOD，也不作为自动热备
 
 计算节点
-├── managed：只通过 OOD/Slurm 使用
+├── managed：OOD/Slurm 计算；SSH 可开发但不能直接使用 GPU
 └── free：允许 SSH，也接受 Slurm 作业
 ```
 
@@ -46,8 +46,9 @@
 ### 3.1 `managed` 分区
 
 - 用于 A100 等受管控计算节点。
-- 普通用户不直接 SSH 登录。
-- OOD 是主要交互入口。
+- OOD 是 GPU 计算和交互式作业的主要入口。
+- 普通用户可以使用公钥 SSH，支持 Codex、VS Code Remote、Git、tmux、Conda 和 CPU 调试。
+- SSH 登录会话位于 systemd `user.slice`，不允许直接打开物理 GPU 设备。
 - Slurm cgroup 管控作业内的 CPU、内存和 GPU 设备。
 - GPU 作业必须通过 Slurm GRES 申请。
 
@@ -84,6 +85,41 @@ OOD 表单同时提供：
 sbatch -p free --nodelist=lab-node-01 job.sh
 ```
 
+### 3.4 SSH 开发与 GPU 访问模型
+
+沿用旧 A100 系统已经验证过的分层方式，不启用 `pam_slurm_adopt`，也不关闭计算节点 SSH：
+
+```text
+SSH / Codex / VS Code Remote
+└── user.slice
+    ├── 可使用 shell、编辑器、Git、Conda、CPU 和本地文件
+    └── 不可打开 /dev/nvidia[0-N] 执行 GPU 计算
+
+OOD / sbatch / srun
+└── Slurm job cgroup
+    └── 按 GRES 分配放行对应 GPU 设备
+
+管理员维护
+└── system.slice
+    └── 可执行驱动、NVLink、DCGM 和 GPU 故障排查
+```
+
+普通登录会话的设备策略放在：
+
+```text
+/etc/systemd/system/user.slice.d/no-gpu.conf
+```
+
+该策略放行 shell、PTY、随机数、FUSE 和必要的 NVIDIA 控制设备，但不放行物理 GPU、NVIDIA capability 和 DRM render 设备。Slurm 节点使用 `task/cgroup`、`ConstrainDevices=yes` 和 `gres.conf`，仅向作业放行已分配设备。
+
+管理员维护入口为：
+
+```bash
+sudo systemd-run --pty --slice=system.slice bash
+```
+
+SSH 启动的 CPU/内存进程仍可能与 Slurm 作业竞争资源。系统以开发体验优先，先通过使用规范与监控处理，不增加登录前必须存在 Slurm allocation 的限制。
+
 ## 4. 用户模型
 
 ### 4.1 唯一来源
@@ -113,8 +149,8 @@ ansible/
 
 - 所有控制节点和计算节点创建相同用户名与 UID/GID。
 - 用户 Linux 密码锁定。
-- 自由实验主机安装用户的 `authorized_keys`。
-- 受管控计算节点只创建账户，不部署普通用户登录公钥。
+- 自由实验主机和受管控 GPU 节点都安装用户的 `authorized_keys`。
+- 受管控 GPU 节点依靠 `user.slice` 禁止 SSH 会话直接使用 GPU，而不是通过关闭 SSH 实现管控。
 - 新主控单独维护 OOD Basic Auth 的 `.htpasswd`。
 - 新增用户或更新公钥后运行 Ansible；离线主机下次补跑。
 - 删除用户时先锁定账户并移除公钥，不自动删除各主机上的本地 `/home`。
@@ -218,7 +254,7 @@ slurmdbd 和监控不作为紧急命令行调度的必要依赖。
 |---|---|---|
 | 通用 NFS 掉线 | `/net/epic-data` 暂不可用 | SSH、Slurm、本地任务、节点启动 |
 | OOD 会话 NFS 掉线 | 新 OOD 交互会话失败或现有会话卡住 | 自由 SSH、已有本地任务、Slurm daemon |
-| OOD/新主控故障 | 门户和新调度操作中断 | 已运行的计算进程、自由主机 SSH |
+| OOD/新主控故障 | 门户和新调度操作中断 | 已运行的计算进程、自由主机和 GPU 节点 SSH |
 | 自由主机离线 | 该节点作业不可调度 | 其他节点和分区 |
 | Ansible 同步时节点离线 | 该节点账号暂未更新 | 已同步节点；下次补跑 |
 | 旧控制节点故障 | 暂时失去冷备能力 | 主控正常调度 |
@@ -226,15 +262,18 @@ slurmdbd 和监控不作为紧急命令行调度的必要依赖。
 ## 9. 验收标准
 
 1. 新用户执行一次配置后，在在线节点上具有一致 UID/GID。
-2. 公钥可以登录自由主机，不能直接登录受管控计算节点。
+2. 公钥可以登录自由主机和受管控 GPU 节点；GPU 节点的普通 SSH 会话不能执行 GPU 计算。
 3. OOD 可以选择 `managed`/`free` 分区及明确目标节点。
 4. Jupyter、Code Server、ttyd 和 Script 能在目标节点启动并生成连接信息。
 5. 作业使用目标节点的本地 `/home` 或 `/scratch`。
 6. 自由主机的 SSH 进程与 Slurm 作业可以同时存在。
-7. 通用 NFS 断开时，SSH、Slurm和本地作业继续工作。
-8. OOD 会话 NFS 断开时，故障不传播到 Slurm 控制状态。
-9. 现有仓库文档不再出现失效 IP、旧节点名和旧存储路径。
-10. 可以按书面流程在旧控制节点恢复命令行调度。
+7. A100 普通 SSH 会话可运行 Codex、编辑器和 CPU 程序，但 CUDA/PyTorch 无法直接使用 GPU。
+8. OOD/Slurm 作业只能看到其通过 GRES 分配的 GPU。
+9. 管理员可以通过 `system.slice` 维护全部 GPU。
+10. 通用 NFS 断开时，SSH、Slurm和本地作业继续工作。
+11. OOD 会话 NFS 断开时，故障不传播到 Slurm 控制状态。
+12. 现有仓库文档不再出现失效 IP、旧节点名和旧存储路径。
+13. 可以按书面流程在旧控制节点恢复命令行调度。
 
 ## 10. 实施阶段
 
