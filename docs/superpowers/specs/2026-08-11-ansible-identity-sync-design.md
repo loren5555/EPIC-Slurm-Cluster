@@ -65,10 +65,15 @@ ansible/
 ├── vars/users.yml
 ├── playbooks/
 │   ├── users.yml
-│   └── ssh_access.yml
+│   ├── ssh_access.yml
+│   ├── ood.yml
+│   └── site.yml
 └── roles/
     ├── identity/
-    └── ssh_access/
+    ├── ssh_access/
+    ├── ood_controller/
+    ├── ood_compute/
+    └── ood_apps/
 ```
 
 常规变更先运行：
@@ -79,6 +84,8 @@ ansible-playbook playbooks/ssh_access.yml --check --diff
 ```
 
 确认后去掉 `--check --diff` 正式收敛。紧急手工修改受管文件后，必须将同样的变更补回 Git，否则下次 Ansible 执行会将其恢复为仓库状态。
+
+OOD 后续作为同一 Ansible 项目中的独立模块加入：`ood_controller` 管理门户和 Web 服务，`ood_compute` 管理计算节点运行依赖与会话目录，`ood_apps` 发布本仓库中的 IAPP。新增 OOD 时只需增加这些 roles 并由 `site.yml` 引入，不修改已稳定的身份同步逻辑。OOD 独立密码文件不属于 `identity` 或 `ssh_access` role；其存储与更新方式在 OOD 实施前单独设计。
 
 ## 7. 首次迁移顺序
 
