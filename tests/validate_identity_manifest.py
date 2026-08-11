@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
+
+import yaml
 
 
 ALLOWED_SSH_TARGETS = {"controller", "a100", "rtx4070"}
@@ -23,7 +24,7 @@ def require(condition: bool, message: str) -> None:
 
 def load_manifest(path: Path) -> dict:
     require(path.is_file(), f"manifest does not exist: {path}")
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
     require(isinstance(data, dict), "manifest root must be a mapping")
     return data
 
@@ -109,7 +110,7 @@ def main() -> int:
         return 2
     try:
         validate_manifest(load_manifest(Path(sys.argv[1])))
-    except (OSError, ValueError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, yaml.YAMLError) as error:
         print(f"identity manifest invalid: {error}", file=sys.stderr)
         return 1
     print("identity manifest valid")
