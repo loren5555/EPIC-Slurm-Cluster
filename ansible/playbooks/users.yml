@@ -1,0 +1,9 @@
+---
+- name: Validate and synchronize EPIC cluster identities
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - ../vars/users.yml
+  roles:
+    - identity
+

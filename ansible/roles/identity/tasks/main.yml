@@ -1,0 +1,4 @@
+---
+- name: Run identity conflict preflight
+  ansible.builtin.import_tasks: preflight.yml
+

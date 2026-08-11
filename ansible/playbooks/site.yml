@@ -1,0 +1,8 @@
+---
+- import_playbook: users.yml
+
+# Future modules remain independent playbooks imported here:
+# - ssh_access.yml
+# - slurm.yml
+# - ood.yml
+

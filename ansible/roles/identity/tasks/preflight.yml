@@ -1,0 +1,31 @@
+---
+- name: Read the complete local passwd database
+  ansible.builtin.getent:
+    database: passwd
+
+- name: Read the complete local group database
+  ansible.builtin.getent:
+    database: group
+
+- name: Calculate every incompatible existing identity
+  ansible.builtin.set_fact:
+    epic_identity_preflight_conflicts: >-
+      {{
+        cluster_users
+        | epic_identity_conflicts(
+            access_groups,
+            ansible_facts.getent_passwd,
+            ansible_facts.getent_group
+          )
+      }}
+
+- name: Refuse to modify a host with identity conflicts
+  ansible.builtin.assert:
+    that:
+      - epic_identity_preflight_conflicts | length == 0
+    fail_msg: |-
+      Identity preflight failed on {{ inventory_hostname }}:
+      {{ epic_identity_preflight_conflicts | join('\n') }}
+    success_msg: >-
+      Identity preflight passed on {{ inventory_hostname }};
+      no user-name, UID, group-name, or GID conflicts found.
