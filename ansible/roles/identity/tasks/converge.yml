@@ -25,7 +25,6 @@
     home: "{{ item.home }}"
     shell: "{{ item.shell }}"
     create_home: true
-    password_lock: true
     state: present
   loop: "{{ cluster_users }}"
   loop_control:
