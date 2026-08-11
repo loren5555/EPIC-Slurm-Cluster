@@ -18,7 +18,7 @@
 
 - [ ] **Step 1: Write the failing manifest validation test**
 
-Create a Python validator that loads `ansible/vars/users.yml`, rejects duplicate names/UIDs/GIDs, requires every user to have a matching private group, verifies project-group members exist, restricts `ssh_access` to `controller`, `a100`, and `rtx4070`, and checks the known migration anchors `liuhongbo=10000`, `huodongkun=10004`, `wanghao=13007`, and `3dv=20003`.
+Create a Python validator that loads `ansible/vars/users.yml` and `ansible/inventory/hosts.yml`, rejects duplicate names/UIDs/GIDs, requires every user to have a matching private group, verifies every user-level `groups` entry refers to `access_groups`, rejects duplicated top-level `members`, restricts `ssh_access` to full compute hostnames present in inventory, and checks the known migration anchors `liuhongbo=10000`, `huodongkun=10004`, `wanghao=13007`, and `3dv=20003`.
 
 - [ ] **Step 2: Run the validator and confirm it fails**
 

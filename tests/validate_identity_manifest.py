@@ -9,7 +9,6 @@ from pathlib import Path
 import yaml
 
 
-ALLOWED_SSH_TARGETS = {"controller", "a100", "rtx4070"}
 EXPECTED_ANCHORS = {
     "liuhongbo": 10000,
     "huodongkun": 10004,
@@ -29,13 +28,24 @@ def load_manifest(path: Path) -> dict:
     return data
 
 
-def validate_manifest(data: dict) -> None:
-    users = data.get("epic_users")
-    project_groups = data.get("epic_project_groups")
-    require(isinstance(users, list) and users, "epic_users must be a non-empty list")
+def compute_hostnames(inventory: dict) -> set[str]:
+    children = inventory.get("all", {}).get("children", {})
+    hostnames: set[str] = set()
+    for group_name in ("controlled_compute_nodes", "free_compute_nodes"):
+        hosts = children.get(group_name, {}).get("hosts", {})
+        require(isinstance(hosts, dict), f"inventory group {group_name} must define hosts")
+        hostnames.update(hosts)
+    require(hostnames, "inventory must contain at least one compute host")
+    return hostnames
+
+
+def validate_manifest(data: dict, allowed_ssh_hosts: set[str]) -> None:
+    users = data.get("cluster_users")
+    access_groups = data.get("access_groups")
+    require(isinstance(users, list) and users, "cluster_users must be a non-empty list")
     require(
-        isinstance(project_groups, list) and project_groups,
-        "epic_project_groups must be a non-empty list",
+        isinstance(access_groups, list) and access_groups,
+        "access_groups must be a non-empty list",
     )
 
     users_by_name: dict[str, dict] = {}
@@ -57,47 +67,36 @@ def validate_manifest(data: dict) -> None:
 
         ssh_access = user.get("ssh_access")
         require(isinstance(ssh_access, list), f"{name}: ssh_access must be a list")
-        require("controller" in ssh_access, f"{name}: controller SSH access is required")
         require(
-            set(ssh_access) <= ALLOWED_SSH_TARGETS,
-            f"{name}: unknown SSH target in {ssh_access}",
+            set(ssh_access) <= allowed_ssh_hosts,
+            f"{name}: unknown compute hostname in ssh_access: {ssh_access}",
         )
 
-        memberships = user.get("project_groups")
-        require(isinstance(memberships, list), f"{name}: project_groups must be a list")
+        memberships = user.get("groups")
+        require(isinstance(memberships, list), f"{name}: groups must be a list")
         users_by_name[name] = user
         users_by_uid[uid] = name
 
     groups_by_name: dict[str, dict] = {}
     groups_by_gid: dict[int, str] = {}
-    for group in project_groups:
-        require(isinstance(group, dict), "each project group must be a mapping")
+    for group in access_groups:
+        require(isinstance(group, dict), "each access group must be a mapping")
         name = group.get("name")
         gid = group.get("gid")
-        members = group.get("members")
-        require(isinstance(name, str) and name, "each project group needs a name")
+        require(isinstance(name, str) and name, "each access group needs a name")
         require(isinstance(gid, int), f"{name}: gid must be an integer")
-        require(20000 <= gid <= 20004, f"{name}: project GID is outside 20000-20004")
-        require(isinstance(members, list), f"{name}: members must be a list")
-        require(name not in groups_by_name, f"duplicate project group name: {name}")
-        require(gid not in groups_by_gid, f"duplicate project GID: {gid}")
-        require(len(members) == len(set(members)), f"{name}: duplicate member")
-        for member in members:
-            require(member in users_by_name, f"{name}: unknown member {member}")
+        require(20000 <= gid <= 20004, f"{name}: access GID is outside 20000-20004")
+        require("members" not in group, f"{name}: members must be derived from cluster_users")
+        require(name not in groups_by_name, f"duplicate access group name: {name}")
+        require(gid not in groups_by_gid, f"duplicate access GID: {gid}")
         groups_by_name[name] = group
         groups_by_gid[gid] = name
 
-    require(groups_by_gid.get(20003) == "3dv", "project GID 20003 must be 3dv")
+    require(groups_by_gid.get(20003) == "3dv", "access GID 20003 must be 3dv")
 
     for username, user in users_by_name.items():
-        declared = set(user["project_groups"])
-        require(declared <= groups_by_name.keys(), f"{username}: unknown project group")
-        actual = {
-            group_name
-            for group_name, group in groups_by_name.items()
-            if username in group["members"]
-        }
-        require(declared == actual, f"{username}: project membership differs: {declared} != {actual}")
+        declared = set(user["groups"])
+        require(declared <= groups_by_name.keys(), f"{username}: unknown access group")
 
     for username, expected_uid in EXPECTED_ANCHORS.items():
         require(username in users_by_name, f"missing anchor user: {username}")
@@ -105,11 +104,13 @@ def validate_manifest(data: dict) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print(f"usage: {Path(sys.argv[0]).name} MANIFEST", file=sys.stderr)
+    if len(sys.argv) != 3:
+        print(f"usage: {Path(sys.argv[0]).name} MANIFEST INVENTORY", file=sys.stderr)
         return 2
     try:
-        validate_manifest(load_manifest(Path(sys.argv[1])))
+        manifest = load_manifest(Path(sys.argv[1]))
+        inventory = load_manifest(Path(sys.argv[2]))
+        validate_manifest(manifest, compute_hostnames(inventory))
     except (OSError, ValueError, yaml.YAMLError) as error:
         print(f"identity manifest invalid: {error}", file=sys.stderr)
         return 1

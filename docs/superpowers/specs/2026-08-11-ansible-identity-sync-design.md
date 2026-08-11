@@ -16,6 +16,9 @@
 - `docs/id_table.md` 保留为人类可读视图，不用于驱动配置。
 - 所有主机创建同样的用户名和 UID/GID；“账号存在”不等于“有 SSH 访问权”。
 - Ansible 遇到同名不同 UID/GID、同 UID/GID 不名的冲突时立即失败，不自动改号，不自动改变旧文件属主。
+- `cluster_users` 定义所有集群用户；用户内的 `groups` 是附属 Unix 访问组列表。
+- `access_groups` 只定义组名和 GID，不重复维护 `members`；成员关系从 `cluster_users[].groups` 单向推导。
+- `cluster_users[].ssh_access` 只填写 inventory 中的完整计算节点主机名；所有用户的控制节点访问为全局规则，不在每个用户下重复声明。
 
 ## 3. 管理拓扑
 
