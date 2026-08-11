@@ -1,0 +1,74 @@
+---
+- name: Create each user's private primary group
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    state: present
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create access groups with conventional Linux names
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    state: present
+  loop: "{{ access_groups | rejectattr('name', 'equalto', '3dv') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Ubuntu's groupadd rejects names that start with a digit. addgroup provides the
+# explicit allow-bad-names switch needed to preserve the established 3dv group.
+- name: Create the legacy 3dv access group when it is absent
+  ansible.builtin.command:
+    argv:
+      - addgroup
+      - --gid
+      - "{{ item.gid | string }}"
+      - --allow-bad-names
+      - "{{ item.name }}"
+  loop: "{{ access_groups | selectattr('name', 'equalto', '3dv') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in ansible_facts.getent_group
+  changed_when: true
+
+- name: Create or calibrate cluster user accounts
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    uid: "{{ item.uid }}"
+    group: "{{ item.name }}"
+    home: "{{ item.home }}"
+    shell: "{{ item.shell }}"
+    create_home: true
+    password_lock: true
+    state: present
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Refreshing getent makes the following comparison reflect groups created above.
+- name: Refresh the local group database after creation
+  ansible.builtin.getent:
+    database: group
+
+# Only the five managed access groups are made exact. Supplementary groups not
+# listed in access_groups, such as sudo or docker, remain under local control.
+- name: Synchronize exact membership of managed access groups
+  ansible.builtin.command:
+    argv:
+      - gpasswd
+      - --members
+      - "{{ desired_members | join(',') }}"
+      - "{{ item.name }}"
+  vars:
+    desired_members: "{{ cluster_users | epic_access_group_members(item.name) | sort }}"
+    current_group_fields: >-
+      {{ ansible_facts.getent_group.get(item.name, ['x', item.gid | string, '']) }}
+    current_members: >-
+      {{ current_group_fields[2].split(',') | reject('equalto', '') | sort }}
+  loop: "{{ access_groups }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: current_members != desired_members
+  changed_when: true

@@ -2,3 +2,5 @@
 - name: Run identity conflict preflight
   ansible.builtin.import_tasks: preflight.yml
 
+- name: Synchronize cluster identities
+  ansible.builtin.import_tasks: converge.yml

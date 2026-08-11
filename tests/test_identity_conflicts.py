@@ -11,7 +11,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY_ROOT / "ansible" / "filter_plugins"))
 
-from identity import identity_conflicts  # noqa: E402
+from identity import access_group_members, identity_conflicts  # noqa: E402
 
 
 class IdentityConflictTests(unittest.TestCase):
@@ -103,6 +103,19 @@ class IdentityConflictTests(unittest.TestCase):
         self.assertEqual(len(conflicts), 2)
         self.assertTrue(any("group EPIC-RL" in conflict and "GID 22222" in conflict for conflict in conflicts))
         self.assertTrue(any("GID 20000" in conflict and "other-laboratory" in conflict for conflict in conflicts))
+
+    def test_derives_access_group_members_from_users(self) -> None:
+        users = [
+            {"name": "first-user", "groups": ["EPIC-RL", "shared"]},
+            {"name": "second-user", "groups": ["shared"]},
+            {"name": "third-user", "groups": []},
+        ]
+
+        self.assertEqual(
+            access_group_members(users, "shared"),
+            ["first-user", "second-user"],
+        )
+        self.assertEqual(access_group_members(users, "EPIC-RL"), ["first-user"])
 
 
 if __name__ == "__main__":

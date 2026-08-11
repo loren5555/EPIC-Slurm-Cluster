@@ -7,6 +7,19 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 
+def access_group_members(
+    cluster_users: Sequence[Mapping[str, Any]],
+    group_name: str,
+) -> list[str]:
+    """Return manifest users assigned to one access group."""
+
+    return [
+        str(user["name"])
+        for user in cluster_users
+        if group_name in user.get("groups", [])
+    ]
+
+
 def _entry_records(fields: Sequence[Any], record: str) -> list[Sequence[Any]]:
     """Normalize one getent record or duplicate same-name NSS records."""
 
@@ -118,4 +131,7 @@ class FilterModule:
     """Expose filters to Ansible/Jinja."""
 
     def filters(self) -> dict[str, Any]:
-        return {"epic_identity_conflicts": identity_conflicts}
+        return {
+            "epic_access_group_members": access_group_members,
+            "epic_identity_conflicts": identity_conflicts,
+        }
