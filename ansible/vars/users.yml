@@ -323,7 +323,7 @@ cluster_users:
     home: /home/wangzhaoxuan
     shell: /bin/bash
     groups:
-      - 3dv
+      - CV3D
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: zengshipeng
@@ -332,7 +332,7 @@ cluster_users:
     home: /home/zengshipeng
     shell: /bin/bash
     groups:
-      - 3dv
+      - CV3D
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: wangminlong
@@ -341,7 +341,7 @@ cluster_users:
     home: /home/wangminlong
     shell: /bin/bash
     groups:
-      - 3dv
+      - CV3D
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: xujinfeng
@@ -350,7 +350,7 @@ cluster_users:
     home: /home/xujinfeng
     shell: /bin/bash
     groups:
-      - 3dv
+      - CV3D
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: zhoumengting
@@ -359,7 +359,7 @@ cluster_users:
     home: /home/zhoumengting
     shell: /bin/bash
     groups:
-      - 3dv
+      - CV3D
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: wanghao
@@ -368,7 +368,7 @@ cluster_users:
     home: /home/wanghao
     shell: /bin/bash
     groups:
-      - 3dv
+      - CV3D
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: wangjiaxiang
@@ -387,7 +387,7 @@ access_groups:
     gid: 20001
   - name: MLLMs
     gid: 20002
-  - name: 3dv
+  - name: CV3D
     gid: 20003
   - name: nue
     gid: 20004

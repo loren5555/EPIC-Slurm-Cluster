@@ -6,7 +6,7 @@
 
 **Architecture:** The controller runs Ansible against itself and compute nodes over the existing `administrator` SSH path. `ansible/vars/users.yml` becomes authoritative after migration; a preflight phase reads complete passwd/group databases and rejects every name/number conflict before any account task runs. The identity role creates groups, users, homes, locked passwords, and exact project-group membership; SSH key and OOD roles remain separate future modules.
 
-**Tech Stack:** Ansible Core built-in modules, YAML, Python 3 validation script, OpenSSH, Ubuntu `addgroup` for the legacy `3dv` group name.
+**Tech Stack:** Ansible Core built-in modules, YAML, Python 3 validation script, and OpenSSH.
 
 ---
 
@@ -18,7 +18,7 @@
 
 - [ ] **Step 1: Write the failing manifest validation test**
 
-Create a Python validator that loads `ansible/vars/users.yml` and `ansible/inventory/hosts.yml`, rejects duplicate names/UIDs/GIDs, requires every user to have a matching private group, verifies every user-level `groups` entry refers to `access_groups`, rejects duplicated top-level `members`, restricts `ssh_access` to full compute hostnames present in inventory, and checks the known migration anchors `liuhongbo=10000`, `huodongkun=10004`, `wanghao=13007`, and `3dv=20003`.
+Create a Python validator that loads `ansible/vars/users.yml` and `ansible/inventory/hosts.yml`, rejects duplicate names/UIDs/GIDs, requires every user to have a matching private group, verifies every user-level `groups` entry refers to `access_groups`, rejects duplicated top-level `members`, rejects group names that start with a digit or contain non-portable characters, restricts `ssh_access` to full compute hostnames present in inventory, and checks the known migration anchors `liuhongbo=10000`, `huodongkun=10004`, `wanghao=13007`, and `CV3D=20003`.
 
 - [ ] **Step 2: Run the validator and confirm it fails**
 
@@ -129,13 +129,13 @@ git commit -m "feat: reject ansible identity conflicts"
 - Create: `ansible/roles/identity/tasks/converge.yml`
 - Modify: `ansible/roles/identity/tasks/main.yml`
 
-- [ ] **Step 1: Create private groups and regular project groups**
+- [ ] **Step 1: Create private groups and access groups**
 
-Use `ansible.builtin.group` for same-name private groups and project groups other than `3dv`. Preserve explicit GIDs from the manifest.
+Use `ansible.builtin.group` for same-name private groups and all access groups. Preserve explicit GIDs from the manifest.
 
-- [ ] **Step 2: Handle the legacy `3dv` group name explicitly**
+- [ ] **Step 2: Reject non-portable group names**
 
-After preflight, run Ubuntu `addgroup --gid 20003 --allow-bad-names 3dv` only when `3dv` is absent. Do not call unsupported `groupadd --force-badname`.
+Require every group name to start with an ASCII letter or underscore and contain only letters, digits, underscores, or hyphens. Rename the legacy `3dv` group to `CV3D` manually before Ansible convergence; do not encode legacy-name exceptions in the role.
 
 - [ ] **Step 3: Create or normalize ordinary users**
 

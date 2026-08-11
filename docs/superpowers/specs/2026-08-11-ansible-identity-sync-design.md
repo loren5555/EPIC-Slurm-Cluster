@@ -18,6 +18,7 @@
 - Ansible 遇到同名不同 UID/GID、同 UID/GID 不名的冲突时立即失败，不自动改号，不自动改变旧文件属主。
 - `cluster_users` 定义所有集群用户；用户内的 `groups` 是附属 Unix 访问组列表。
 - `access_groups` 只定义组名和 GID，不重复维护 `members`；成员关系从 `cluster_users[].groups` 单向推导。
+- 用户组名称必须以英文字母或下划线开头，后续只能包含英文字母、数字、下划线或连字符，且最长 32 个字符。禁止使用数字开头的组名；历史遗留的不合规组必须先在 Ansible 外人工改名。
 - `cluster_users[].ssh_access` 只填写 inventory 中的完整计算节点主机名；所有用户的控制节点访问为全局规则，不在每个用户下重复声明。
 
 ## 3. 管理拓扑
@@ -33,11 +34,27 @@ Ansible 在所有节点管理：
 
 - 用户的用户名、UID、主 GID、主目录和 shell。
 - 与用户同名的主组。
-- `EPIC-RL`、`CGCL`、`MLLMs`、`3dv`和 `nue` 项目组及成员关系。
+- `EPIC-RL`、`CGCL`、`MLLMs`、`CV3D` 和 `nue` 访问组及成员关系。
 - 本地主目录的存在性和基本所有权。
 - 普通用户系统密码保持锁定，不从 A100 复制 `/etc/shadow`。
 
 删除用户时，本阶段只锁定账号并撤销受管 SSH 公钥，不自动删除主目录和用户文件。
+
+历史 `3dv` 组在首次收敛前人工改名，保留 GID `20003`：
+
+```bash
+# CV3D 必须尚不存在，旧组必须是 GID 20003
+getent group CV3D
+getent group 3dv
+
+# 只改变组名；GID 不变，因此不需要修改文件属组
+sudo groupmod --new-name CV3D 3dv
+
+# 期望返回 CV3D:x:20003:...
+getent group CV3D
+```
+
+只在实际存在旧组的主机上执行。Ansible 不负责历史非法组名迁移；未迁移的主机会在身份冲突预检阶段停止。
 
 ## 5. SSH 单密钥模型
 

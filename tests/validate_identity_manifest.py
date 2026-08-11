@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -19,6 +20,15 @@ EXPECTED_ANCHORS = {
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(message)
+
+
+def valid_group_name(name: str) -> bool:
+    """Return whether a group follows the cluster's portable naming rule."""
+
+    return bool(
+        len(name) <= 32
+        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", name)
+    )
 
 
 def load_manifest(path: Path) -> dict:
@@ -56,6 +66,11 @@ def validate_manifest(data: dict, allowed_ssh_hosts: set[str]) -> None:
         uid = user.get("uid")
         gid = user.get("gid")
         require(isinstance(name, str) and name, "each user needs a name")
+        require(
+            valid_group_name(name),
+            f"{name}: user names, and therefore private group names, must "
+            "follow the portable group naming rule",
+        )
         require(isinstance(uid, int), f"{name}: uid must be an integer")
         require(isinstance(gid, int), f"{name}: gid must be an integer")
         require(10000 <= uid < 20000, f"{name}: uid {uid} is outside the managed range")
@@ -84,6 +99,11 @@ def validate_manifest(data: dict, allowed_ssh_hosts: set[str]) -> None:
         name = group.get("name")
         gid = group.get("gid")
         require(isinstance(name, str) and name, "each access group needs a name")
+        require(
+            valid_group_name(name),
+            f"{name}: group names must start with a letter or underscore and "
+            "contain only letters, digits, underscores, or hyphens",
+        )
         require(isinstance(gid, int), f"{name}: gid must be an integer")
         require(20000 <= gid <= 20004, f"{name}: access GID is outside 20000-20004")
         require("members" not in group, f"{name}: members must be derived from cluster_users")
@@ -92,7 +112,7 @@ def validate_manifest(data: dict, allowed_ssh_hosts: set[str]) -> None:
         groups_by_name[name] = group
         groups_by_gid[gid] = name
 
-    require(groups_by_gid.get(20003) == "3dv", "access GID 20003 must be 3dv")
+    require(groups_by_gid.get(20003) == "CV3D", "access GID 20003 must be CV3D")
 
     for username, user in users_by_name.items():
         declared = set(user["groups"])

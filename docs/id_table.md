@@ -29,7 +29,7 @@
 |         |       |liuwenjie    | 12010      |           |
 |         |       |zhangkaiyan  | 12011      |           |
 |         |       |youwenlong   | 12012      |           |
-|3dv      | 20003 |
+|CV3D     | 20003 |
 |         |       |wangzhaoxuan | 13001      |Admin      |
 |         |       |wanghao      | 13002      |           |
 |         |       |zengshipeng  | 13003      |           |
