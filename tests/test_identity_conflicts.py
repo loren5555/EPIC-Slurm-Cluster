@@ -41,6 +41,21 @@ class IdentityConflictTests(unittest.TestCase):
 
         self.assertEqual(conflicts, [])
 
+    def test_accepts_duplicate_nss_records_with_the_same_numeric_id(self) -> None:
+        self.groups["gdm"] = [
+            ["x", "975", ""],
+            ["x", "975", "gdm-greeter"],
+        ]
+
+        conflicts = identity_conflicts(
+            self.users,
+            self.access_groups,
+            self.passwd,
+            self.groups,
+        )
+
+        self.assertEqual(conflicts, [])
+
     def test_reports_name_and_numeric_conflicts_together(self) -> None:
         self.passwd["huodongkun"] = [
             "x",
