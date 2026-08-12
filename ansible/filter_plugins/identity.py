@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Ansible filters for EPIC cluster identity validation."""
+"""Pure Ansible/Jinja filters for EPIC identity and SSH policy.
+
+The functions in this module do not modify hosts. They transform the user
+manifest and facts collected by Ansible into conflict reports, change plans,
+group membership, and per-host SSH authorization lists.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,8 @@ def access_group_members(
 ) -> list[str]:
     """Return manifest users assigned to one access group."""
 
+    # Group membership is stored only on users; access_groups deliberately does
+    # not duplicate a members list.
     return [
         str(user["name"])
         for user in cluster_users
@@ -27,6 +34,8 @@ def ssh_authorized_users(
 ) -> list[str]:
     """Return users whose managed cluster key belongs on one host."""
 
+    # Controller access is implicit for every cluster user. Compute-node access
+    # must be explicitly listed with the stable inventory hostname.
     is_controller = host_name in controller_hosts
     return [
         str(user["name"])
@@ -36,12 +45,15 @@ def ssh_authorized_users(
 
 
 def _group_members(fields: Sequence[Any], record: str) -> set[str]:
+    """Return all members from one normalized getent group record."""
+
     members: set[str] = set()
     for entry in _entry_records(fields, record):
         try:
             member_field = str(entry[2])
         except IndexError as error:
             raise ValueError(f"invalid getent record for {record}: {fields!r}") from error
+        # getent stores supplementary members as one comma-separated field.
         members.update(member for member in member_field.split(",") if member)
     return members
 
@@ -56,21 +68,26 @@ def identity_change_plan(
     """Describe every identity change the convergence tasks will request."""
 
     changes: list[str] = []
+
+    # Convert Ansible's registered stat results into direct username lookup.
     home_exists = {
         str(result["item"]["name"]): bool(result.get("stat", {}).get("exists"))
         for result in home_checks
     }
 
+    # User-private primary groups must be created before their accounts.
     for user in cluster_users:
         name = str(user["name"])
         if name not in group_entries:
             changes.append(f"CREATE PRIVATE GROUP {name} gid={int(user['gid'])}")
 
+    # Managed supplementary access groups are independent of private groups.
     for group in access_groups:
         name = str(group["name"])
         if name not in group_entries:
             changes.append(f"CREATE ACCESS GROUP {name} gid={int(group['gid'])}")
 
+    # Report account creation or the fields that the user module will calibrate.
     for user in cluster_users:
         name = str(user["name"])
         expected_home = str(user["home"])
@@ -83,6 +100,8 @@ def identity_change_plan(
             )
             continue
 
+        # passwd fields after the username are:
+        # [password, uid, gid, gecos, home, shell].
         fields = _entry_records(passwd_entries[name], f"passwd:{name}")[0]
         field_changes: list[str] = []
         actual_home = str(fields[4])
@@ -99,6 +118,8 @@ def identity_change_plan(
         if not home_exists[name]:
             changes.append(f"CREATE HOME {name} path={expected_home}")
 
+    # Access-group membership is exact, but only for groups declared as managed.
+    # Host-local groups such as sudo and docker are outside this comparison.
     for group in access_groups:
         name = str(group["name"])
         desired = set(access_group_members(cluster_users, name))
@@ -110,6 +131,8 @@ def identity_change_plan(
             continue
 
         current = _group_members(group_entries[name], f"group:{name}")
+        # Set subtraction describes the gpasswd --members effect without
+        # mutating the host during the planning phase.
         added = sorted(desired - current)
         removed = sorted(current - desired)
         if added or removed:
@@ -136,6 +159,8 @@ def _entry_records(fields: Sequence[Any], record: str) -> list[Sequence[Any]]:
     if not fields:
         raise ValueError(f"invalid getent record for {record}: {fields!r}")
 
+    # Ansible normally returns one field list per name. Some NSS sources can
+    # return multiple same-name records, represented as a list of field lists.
     first_field = fields[0]
     if isinstance(first_field, Sequence) and not isinstance(first_field, (str, bytes)):
         records = list(fields)
@@ -152,6 +177,8 @@ def _entry_records(fields: Sequence[Any], record: str) -> list[Sequence[Any]]:
 
 
 def _integer_field(fields: Sequence[Any], index: int, record: str) -> int:
+    """Read a numeric NSS field and attach record context to malformed data."""
+
     try:
         return int(fields[index])
     except (IndexError, TypeError, ValueError) as error:
@@ -167,6 +194,9 @@ def identity_conflicts(
     """Return every incompatible existing user or group identity."""
 
     conflicts: list[str] = []
+
+    # Reverse indexes detect a desired UID or GID already owned by another name,
+    # including identities not listed in the managed manifest.
     users_by_uid: dict[int, set[str]] = {}
     for name, fields in passwd_entries.items():
         for entry in _entry_records(fields, f"passwd:{name}"):
@@ -179,6 +209,8 @@ def identity_conflicts(
             gid = _integer_field(entry, 1, f"group:{name}")
             groups_by_gid.setdefault(gid, set()).add(name)
 
+    # Check both directions: a managed name must have the desired numbers, and
+    # its desired UID must not belong to another local account.
     for user in cluster_users:
         name = str(user["name"])
         expected_uid = int(user["uid"])
@@ -208,6 +240,8 @@ def identity_conflicts(
                 f"UID {expected_uid} is owned by user {uid_owner}; expected user {name}"
             )
 
+    # Private groups and supplementary access groups share the same GID conflict
+    # rules, so combine them before validation.
     desired_groups = [
         {"name": user["name"], "gid": user["gid"]}
         for user in cluster_users
@@ -241,6 +275,7 @@ class FilterModule:
     """Expose filters to Ansible/Jinja."""
 
     def filters(self) -> dict[str, Any]:
+        # Dictionary keys are the filter names used after a Jinja pipe in YAML.
         return {
             "epic_access_group_members": access_group_members,
             "epic_format_identity_change_plan": format_identity_change_plan,
