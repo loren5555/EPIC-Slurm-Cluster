@@ -106,6 +106,15 @@ def identity_change_plan(
     return changes
 
 
+def format_identity_change_plan(hostname: str, changes: Sequence[str]) -> list[str]:
+    """Format a change plan as callback-friendly separate list items."""
+
+    return [
+        f"Identity change plan for {hostname}:",
+        *(changes if changes else ["No identity changes required."]),
+    ]
+
+
 def _entry_records(fields: Sequence[Any], record: str) -> list[Sequence[Any]]:
     """Normalize one getent record or duplicate same-name NSS records."""
 
@@ -219,6 +228,7 @@ class FilterModule:
     def filters(self) -> dict[str, Any]:
         return {
             "epic_access_group_members": access_group_members,
+            "epic_format_identity_change_plan": format_identity_change_plan,
             "epic_identity_change_plan": identity_change_plan,
             "epic_identity_conflicts": identity_conflicts,
         }

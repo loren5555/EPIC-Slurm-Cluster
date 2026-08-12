@@ -13,6 +13,7 @@ sys.path.insert(0, str(REPOSITORY_ROOT / "ansible" / "filter_plugins"))
 
 from identity import (  # noqa: E402
     access_group_members,
+    format_identity_change_plan,
     identity_change_plan,
     identity_conflicts,
 )
@@ -222,6 +223,26 @@ class IdentityConflictTests(unittest.TestCase):
                 [{"item": users[0], "stat": {"exists": True}}],
             ),
             [],
+        )
+
+    def test_formats_change_plan_as_separate_output_items(self) -> None:
+        self.assertEqual(
+            format_identity_change_plan(
+                "compute-01",
+                ["CREATE USER first-user", "UPDATE USER second-user"],
+            ),
+            [
+                "Identity change plan for compute-01:",
+                "CREATE USER first-user",
+                "UPDATE USER second-user",
+            ],
+        )
+        self.assertEqual(
+            format_identity_change_plan("compute-01", []),
+            [
+                "Identity change plan for compute-01:",
+                "No identity changes required.",
+            ],
         )
 
 

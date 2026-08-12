@@ -25,10 +25,8 @@
 
 - name: Display the identity change plan before convergence
   ansible.builtin.debug:
-    msg: |-
-      Identity change plan for {{ inventory_hostname }}:
+    msg: >-
       {{
-        epic_identity_change_plan | join('\n')
-        if epic_identity_change_plan | length > 0
-        else 'No identity changes required.'
+        inventory_hostname
+        | epic_format_identity_change_plan(epic_identity_change_plan)
       }}
