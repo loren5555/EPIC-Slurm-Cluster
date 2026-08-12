@@ -4,6 +4,6 @@
   gather_facts: false
   any_errors_fatal: true
   vars_files:
-    - ../vars/users.yml
+    - ../vars/users.yml  # User and group definitions for EPIC cluster identities.
   roles:
-    - identity
+    - identity  # Role for managing EPIC cluster identities.

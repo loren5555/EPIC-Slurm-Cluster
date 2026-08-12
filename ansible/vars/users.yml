@@ -231,7 +231,7 @@ cluster_users:
     uid: 12011
     gid: 12011
     home: /home/zhangkaiyan
-    shell: /bin/sh
+    shell: /bin/bash
     groups:
       - MLLMs
     ssh_access:
