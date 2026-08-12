@@ -1,4 +1,7 @@
 ---
+# Run only on controller hosts. Validate or generate one dedicated cluster key
+# pair per user, then publish public keys as a transient in-memory map. Ansible
+# never reads private-key content.
 - name: Inspect cluster private keys before generation
   ansible.builtin.stat:
     path: "{{ item.home }}/.ssh/epic_cluster_ed25519"
@@ -16,6 +19,8 @@
   register: epic_ssh_public_keys_before
 
 - name: Refuse incomplete existing key pairs
+  # Both stat loops use the same cluster_users order, so epic_ssh_key_index
+  # compares the private and public files belonging to the same user.
   ansible.builtin.assert:
     that:
       - >-
@@ -31,6 +36,8 @@
     index_var: epic_ssh_key_index
 
 - name: Generate missing user cluster keys without replacing existing keys
+  # The relative key path is resolved under the user's home. force=false keeps
+  # existing keys valid for workstations that already copied the private key.
   ansible.builtin.user:
     name: "{{ item.name }}"
     generate_ssh_key: true
@@ -43,6 +50,8 @@
     label: "{{ item.name }}"
 
 - name: Explain keys that a check-mode run cannot distribute yet
+  # Check mode predicts key creation but does not create a public key that can be
+  # read and displayed as an authorized_keys change.
   ansible.builtin.debug:
     msg: >-
       CHECK MODE: would generate {{ item.item.home }}/.ssh/epic_cluster_ed25519
@@ -55,6 +64,8 @@
     - not item.stat.exists
 
 - name: Inspect cluster public keys after generation
+  # Real runs see newly generated keys; first-run check mode still sees them as
+  # absent and safely skips the following read.
   ansible.builtin.stat:
     path: "{{ item.home }}/.ssh/epic_cluster_ed25519.pub"
   loop: "{{ cluster_users }}"
@@ -63,6 +74,7 @@
   register: epic_ssh_keys_after
 
 - name: Read available cluster public keys from the controller
+  # slurp reads only .pub files and returns their contents in base64 form.
   ansible.builtin.slurp:
     src: "{{ item.home }}/.ssh/epic_cluster_ed25519.pub"
   loop: "{{ cluster_users }}"
@@ -73,10 +85,13 @@
   register: epic_ssh_public_key_reads
 
 - name: Initialize the public-key source map
+  # This fact exists only during the current playbook run and is not written to
+  # the repository or a persistent secret store.
   ansible.builtin.set_fact:
     epic_cluster_public_keys: {}
 
 - name: Build the public-key source map in memory
+  # Decode and trim each key, then merge it into the username-to-public-key map.
   ansible.builtin.set_fact:
     epic_cluster_public_keys: >-
       {{

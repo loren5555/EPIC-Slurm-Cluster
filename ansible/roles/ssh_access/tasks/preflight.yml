@@ -1,9 +1,14 @@
 ---
+# SSH management assumes identity convergence has already succeeded. This
+# read-only phase stops before key generation if an account is missing or has
+# unexpected numeric IDs.
 - name: Read local users before managing SSH access
   ansible.builtin.getent:
     database: passwd
 
 - name: Require every managed user to exist with the expected identity
+  # getent passwd fields are [password, uid, gid, gecos, home, shell]. Fallback
+  # values make a missing account fail cleanly instead of causing an index error.
   ansible.builtin.assert:
     that:
       - item.name in ansible_facts.getent_passwd

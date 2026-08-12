@@ -1,4 +1,5 @@
 ---
+# Primary groups must exist before their corresponding accounts are created.
 - name: Create each user's private primary group
   ansible.builtin.group:
     name: "{{ item.name }}"
@@ -9,6 +10,7 @@
     label: "{{ item.name }}"
 
 - name: Create managed access groups
+  # Membership is intentionally omitted here and synchronized exactly below.
   ansible.builtin.group:
     name: "{{ item.name }}"
     gid: "{{ item.gid }}"
@@ -18,6 +20,8 @@
     label: "{{ item.name }}"
 
 - name: Create or calibrate cluster user accounts
+  # Supplementary groups are omitted to preserve host-local memberships such as
+  # sudo and docker.
   ansible.builtin.user:
     name: "{{ item.name }}"
     uid: "{{ item.uid }}"
@@ -38,6 +42,8 @@
 # Only the five managed access groups are made exact. Supplementary groups not
 # listed in access_groups, such as sudo or docker, remain under local control.
 - name: Synchronize exact membership of managed access groups
+  # gpasswd --members replaces membership only for this managed access group and
+  # runs only when sorted current and desired lists differ.
   ansible.builtin.command:
     argv:
       - gpasswd
@@ -45,7 +51,9 @@
       - "{{ desired_members | join(',') }}"
       - "{{ item.name }}"
   vars:
+    # User entries are the single source of truth for access-group membership.
     desired_members: "{{ cluster_users | epic_access_group_members(item.name) | sort }}"
+    # getent group records use [password, gid, comma-separated-members].
     current_group_fields: >-
       {{ ansible_facts.getent_group.get(item.name, ['x', item.gid | string, '']) }}
     current_members: >-

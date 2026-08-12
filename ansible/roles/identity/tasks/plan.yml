@@ -11,6 +11,8 @@
   register: epic_identity_home_checks
 
 - name: Calculate the read-only identity change plan
+  # Compare the manifest with passwd/group facts from preflight and the home
+  # directory checks collected above.
   ansible.builtin.set_fact:
     epic_identity_change_plan: >-
       {{
@@ -24,6 +26,7 @@
       }}
 
 - name: Display the identity change plan before convergence
+  # List formatting keeps each planned operation readable in default output.
   ansible.builtin.debug:
     msg: >-
       {{

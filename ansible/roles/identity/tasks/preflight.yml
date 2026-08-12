@@ -1,4 +1,6 @@
 ---
+# Read complete NSS databases so numeric-ID collisions are detected even when
+# the conflicting name is not managed by this manifest.
 - name: Read the complete local passwd database
   ansible.builtin.getent:
     database: passwd
@@ -8,6 +10,8 @@
     database: group
 
 - name: Calculate every incompatible existing identity
+  # Missing identities are valid because convergence will create them. Existing
+  # name/number disagreements are returned as conflicts without changing state.
   ansible.builtin.set_fact:
     epic_identity_preflight_conflicts: >-
       {{
@@ -20,6 +24,8 @@
       }}
 
 - name: Refuse to modify a host with identity conflicts
+  # users.yml uses any_errors_fatal, so one failure prevents every host from
+  # entering the convergence phase.
   ansible.builtin.assert:
     that:
       - epic_identity_preflight_conflicts | length == 0

@@ -1,4 +1,6 @@
 ---
+# Keep validation, human-readable planning, and mutation as explicit phases.
+# Imported task files share the role variables and execute in this order.
 - name: Run identity conflict preflight
   ansible.builtin.import_tasks: preflight.yml
 

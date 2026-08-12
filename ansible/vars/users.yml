@@ -1,3 +1,10 @@
+# Authoritative cluster identity and SSH-authorization manifest.
+#
+# Each user defines a stable local identity, account attributes, managed access
+# groups, and full inventory hostnames in ssh_access. Every user is implicitly
+# authorized on controller hosts, so controller names are not repeated there.
+# Account presence alone does not grant compute-host SSH access. Never store
+# private keys or authorized_keys contents in this manifest.
 cluster_users:
   - name: liuhongbo
     uid: 10000
@@ -380,6 +387,8 @@ cluster_users:
       - nue
     ssh_access:
       - epic-cluster-compute-a100-01
+# Access groups contain stable names and GIDs only. Exact membership is derived
+# from cluster_users[].groups so it is maintained in one place.
 access_groups:
   - name: EPIC-RL
     gid: 20000

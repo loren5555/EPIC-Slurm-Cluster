@@ -1,4 +1,6 @@
 ---
+# Run once per target host. Only the marked EPIC key block is managed; all
+# unmarked personal and legacy keys are deliberately preserved.
 - name: Calculate users authorized on this host
   ansible.builtin.set_fact:
     epic_ssh_authorized_user_names: >-
@@ -9,7 +11,11 @@
     epic_ssh_public_key_source: >-
       {{ hostvars[groups['controllers'][0]].epic_cluster_public_keys }}
 
+# key_source.yml stored the public-key map on the primary controller. hostvars
+# makes that fact available while processing controller and compute hosts.
 - name: Require every authorized public key during a real run
+  # Set difference reveals authorized users missing from the key map. First-run
+  # check mode skips this because predicted keys do not exist yet.
   ansible.builtin.assert:
     that:
       - >-
@@ -26,6 +32,7 @@
   when: not ansible_check_mode
 
 - name: Create SSH directories for authorized users
+  # OpenSSH expects each user's SSH directory to be private and user-owned.
   ansible.builtin.file:
     path: "{{ item.home }}/.ssh"
     state: directory
@@ -40,6 +47,8 @@
     - item.name in epic_ssh_public_key_source
 
 - name: Install the managed cluster key without replacing personal keys
+  # blockinfile owns only the uniquely marked block and preserves every line
+  # outside it.
   ansible.builtin.blockinfile:
     path: "{{ item.home }}/.ssh/authorized_keys"
     create: true
@@ -57,6 +66,7 @@
     - item.name in epic_ssh_public_key_source
 
 - name: Inspect authorized_keys for users not authorized on this host
+  # Stat first avoids touching or creating a nonexistent authorized_keys file.
   ansible.builtin.stat:
     path: "{{ item.home }}/.ssh/authorized_keys"
   loop: "{{ cluster_users }}"
@@ -66,6 +76,8 @@
   register: epic_ssh_unauthorized_key_files
 
 - name: Remove only the managed cluster key from unauthorized users
+  # state=absent removes the marked block, not the file or personal keys.
+  # item.item is the original user object retained in the registered stat result.
   ansible.builtin.blockinfile:
     path: "{{ item.item.home }}/.ssh/authorized_keys"
     marker: "# {mark} ANSIBLE MANAGED EPIC CLUSTER KEY"

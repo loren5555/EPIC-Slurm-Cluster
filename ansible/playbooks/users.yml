@@ -1,9 +1,12 @@
 ---
+# Converge Linux identities and managed access groups on every cluster host.
 - name: Validate and synchronize EPIC cluster identities
   hosts: all
   gather_facts: false
+  # A conflict on any host stops the play before another host can converge,
+  # preventing a partially synchronized identity database.
   any_errors_fatal: true
   vars_files:
-    - ../vars/users.yml  # User and group definitions for EPIC cluster identities.
+    - ../vars/users.yml  # Authoritative identity and access manifest.
   roles:
-    - identity  # Role for managing EPIC cluster identities.
+    - identity  # Preflight, change plan, and convergence phases.

@@ -1,4 +1,6 @@
 ---
+# Three ordered plays ensure all accounts validate before key generation or any
+# authorized_keys modification begins.
 - name: Validate users before managing SSH access
   hosts: all
   gather_facts: false
@@ -12,6 +14,8 @@
         tasks_from: preflight
 
 - name: Generate and read cluster keys on the controller
+  # Private keys remain on the controller. Only public keys are exposed as an
+  # in-memory host fact for the distribution play.
   hosts: controllers
   gather_facts: false
   any_errors_fatal: true
@@ -24,6 +28,8 @@
         tasks_from: key_source
 
 - name: Synchronize managed SSH authorization on every host
+  # Controllers authorize all users; compute nodes follow each user's explicit
+  # ssh_access inventory-hostname list.
   hosts: all
   gather_facts: false
   any_errors_fatal: true
