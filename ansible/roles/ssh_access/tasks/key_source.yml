@@ -1,0 +1,89 @@
+---
+- name: Inspect cluster private keys before generation
+  ansible.builtin.stat:
+    path: "{{ item.home }}/.ssh/epic_cluster_ed25519"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: epic_ssh_private_keys_before
+
+- name: Inspect cluster public keys before generation
+  ansible.builtin.stat:
+    path: "{{ item.home }}/.ssh/epic_cluster_ed25519.pub"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: epic_ssh_public_keys_before
+
+- name: Refuse incomplete existing key pairs
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.stat.exists
+        == epic_ssh_public_keys_before.results[epic_ssh_key_index].stat.exists
+    fail_msg: >-
+      Incomplete cluster key pair for {{ item.item.name }} on the controller;
+      preserve or repair it manually before Ansible continues.
+    quiet: true
+  loop: "{{ epic_ssh_private_keys_before.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+    index_var: epic_ssh_key_index
+
+- name: Generate missing user cluster keys without replacing existing keys
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    generate_ssh_key: true
+    ssh_key_file: .ssh/epic_cluster_ed25519
+    ssh_key_type: ed25519
+    ssh_key_comment: "{{ item.name }}@{{ inventory_hostname }}"
+    force: false
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Explain keys that a check-mode run cannot distribute yet
+  ansible.builtin.debug:
+    msg: >-
+      CHECK MODE: would generate {{ item.item.home }}/.ssh/epic_cluster_ed25519
+      and authorize its public key according to ssh_access.
+  loop: "{{ epic_ssh_private_keys_before.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - ansible_check_mode
+    - not item.stat.exists
+
+- name: Inspect cluster public keys after generation
+  ansible.builtin.stat:
+    path: "{{ item.home }}/.ssh/epic_cluster_ed25519.pub"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: epic_ssh_keys_after
+
+- name: Read available cluster public keys from the controller
+  ansible.builtin.slurp:
+    src: "{{ item.home }}/.ssh/epic_cluster_ed25519.pub"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+    index_var: epic_ssh_user_index
+  when: epic_ssh_keys_after.results[epic_ssh_user_index].stat.exists
+  register: epic_ssh_public_key_reads
+
+- name: Initialize the public-key source map
+  ansible.builtin.set_fact:
+    epic_cluster_public_keys: {}
+
+- name: Build the public-key source map in memory
+  ansible.builtin.set_fact:
+    epic_cluster_public_keys: >-
+      {{
+        epic_cluster_public_keys
+        | combine({item.item.name: item.content | b64decode | trim})
+      }}
+  loop: "{{ epic_ssh_public_key_reads.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: not (item.skipped | default(false))

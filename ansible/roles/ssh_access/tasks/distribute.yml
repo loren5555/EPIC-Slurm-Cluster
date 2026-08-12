@@ -1,0 +1,78 @@
+---
+- name: Calculate users authorized on this host
+  ansible.builtin.set_fact:
+    epic_ssh_authorized_user_names: >-
+      {{
+        cluster_users
+        | epic_ssh_authorized_users(inventory_hostname, groups['controllers'])
+      }}
+    epic_ssh_public_key_source: >-
+      {{ hostvars[groups['controllers'][0]].epic_cluster_public_keys }}
+
+- name: Require every authorized public key during a real run
+  ansible.builtin.assert:
+    that:
+      - >-
+        epic_ssh_authorized_user_names
+        | difference(epic_ssh_public_key_source.keys() | list)
+        | length == 0
+    fail_msg: >-
+      Controller public keys are missing for:
+      {{
+        epic_ssh_authorized_user_names
+        | difference(epic_ssh_public_key_source.keys() | list)
+        | join(', ')
+      }}
+  when: not ansible_check_mode
+
+- name: Create SSH directories for authorized users
+  ansible.builtin.file:
+    path: "{{ item.home }}/.ssh"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0700"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.name in epic_ssh_authorized_user_names
+    - item.name in epic_ssh_public_key_source
+
+- name: Install the managed cluster key without replacing personal keys
+  ansible.builtin.blockinfile:
+    path: "{{ item.home }}/.ssh/authorized_keys"
+    create: true
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0600"
+    marker: "# {mark} ANSIBLE MANAGED EPIC CLUSTER KEY"
+    block: "{{ epic_ssh_public_key_source[item.name] }}"
+    state: present
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.name in epic_ssh_authorized_user_names
+    - item.name in epic_ssh_public_key_source
+
+- name: Inspect authorized_keys for users not authorized on this host
+  ansible.builtin.stat:
+    path: "{{ item.home }}/.ssh/authorized_keys"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in epic_ssh_authorized_user_names
+  register: epic_ssh_unauthorized_key_files
+
+- name: Remove only the managed cluster key from unauthorized users
+  ansible.builtin.blockinfile:
+    path: "{{ item.item.home }}/.ssh/authorized_keys"
+    marker: "# {mark} ANSIBLE MANAGED EPIC CLUSTER KEY"
+    state: absent
+  loop: "{{ epic_ssh_unauthorized_key_files.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - not (item.skipped | default(false))
+    - item.stat.exists

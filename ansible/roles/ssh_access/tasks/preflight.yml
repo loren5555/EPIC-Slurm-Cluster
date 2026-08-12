@@ -1,0 +1,22 @@
+---
+- name: Read local users before managing SSH access
+  ansible.builtin.getent:
+    database: passwd
+
+- name: Require every managed user to exist with the expected identity
+  ansible.builtin.assert:
+    that:
+      - item.name in ansible_facts.getent_passwd
+      - >-
+        (ansible_facts.getent_passwd.get(item.name, ['x', '-1', '-1'])[1] | int)
+        == (item.uid | int)
+      - >-
+        (ansible_facts.getent_passwd.get(item.name, ['x', '-1', '-1'])[2] | int)
+        == (item.gid | int)
+    fail_msg: >-
+      SSH preflight failed for {{ item.name }} on {{ inventory_hostname }};
+      run playbooks/users.yml successfully before managing SSH access.
+    quiet: true
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"

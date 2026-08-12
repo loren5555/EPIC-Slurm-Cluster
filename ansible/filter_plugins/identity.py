@@ -20,6 +20,21 @@ def access_group_members(
     ]
 
 
+def ssh_authorized_users(
+    cluster_users: Sequence[Mapping[str, Any]],
+    host_name: str,
+    controller_hosts: Sequence[str],
+) -> list[str]:
+    """Return users whose managed cluster key belongs on one host."""
+
+    is_controller = host_name in controller_hosts
+    return [
+        str(user["name"])
+        for user in cluster_users
+        if is_controller or host_name in user.get("ssh_access", [])
+    ]
+
+
 def _group_members(fields: Sequence[Any], record: str) -> set[str]:
     members: set[str] = set()
     for entry in _entry_records(fields, record):
@@ -231,4 +246,5 @@ class FilterModule:
             "epic_format_identity_change_plan": format_identity_change_plan,
             "epic_identity_change_plan": identity_change_plan,
             "epic_identity_conflicts": identity_conflicts,
+            "epic_ssh_authorized_users": ssh_authorized_users,
         }

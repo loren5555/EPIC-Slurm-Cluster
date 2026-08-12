@@ -1,0 +1,36 @@
+---
+- name: Validate users before managing SSH access
+  hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../vars/users.yml
+  tasks:
+    - name: Run SSH access preflight
+      ansible.builtin.import_role:
+        name: ssh_access
+        tasks_from: preflight
+
+- name: Generate and read cluster keys on the controller
+  hosts: controllers
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../vars/users.yml
+  tasks:
+    - name: Build the controller public-key source
+      ansible.builtin.import_role:
+        name: ssh_access
+        tasks_from: key_source
+
+- name: Synchronize managed SSH authorization on every host
+  hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../vars/users.yml
+  tasks:
+    - name: Distribute authorized cluster keys
+      ansible.builtin.import_role:
+        name: ssh_access
+        tasks_from: distribute

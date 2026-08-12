@@ -1,8 +1,7 @@
 ---
 - import_playbook: users.yml
+- import_playbook: ssh_access.yml  # Cluster SSH keys and per-host access.
 
 # Future modules remain independent playbooks imported here:
-# - ssh_access.yml
 # - slurm.yml
 # - ood.yml
-

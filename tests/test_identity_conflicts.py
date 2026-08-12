@@ -16,6 +16,7 @@ from identity import (  # noqa: E402
     format_identity_change_plan,
     identity_change_plan,
     identity_conflicts,
+    ssh_authorized_users,
 )
 
 
@@ -121,6 +122,22 @@ class IdentityConflictTests(unittest.TestCase):
             ["first-user", "second-user"],
         )
         self.assertEqual(access_group_members(users, "EPIC-RL"), ["first-user"])
+
+    def test_authorizes_all_users_on_controller_and_selected_compute_users(self) -> None:
+        users = [
+            {"name": "a100-user", "ssh_access": ["compute-a100"]},
+            {"name": "shared-user", "ssh_access": ["compute-a100", "compute-4070"]},
+            {"name": "controller-user", "ssh_access": []},
+        ]
+
+        self.assertEqual(
+            ssh_authorized_users(users, "controller-01", ["controller-01"]),
+            ["a100-user", "shared-user", "controller-user"],
+        )
+        self.assertEqual(
+            ssh_authorized_users(users, "compute-4070", ["controller-01"]),
+            ["shared-user"],
+        )
 
     def test_reports_concrete_identity_changes(self) -> None:
         users = [
