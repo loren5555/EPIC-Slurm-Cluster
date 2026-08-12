@@ -11,7 +11,11 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY_ROOT / "ansible" / "filter_plugins"))
 
-from identity import access_group_members, identity_conflicts  # noqa: E402
+from identity import (  # noqa: E402
+    access_group_members,
+    identity_change_plan,
+    identity_conflicts,
+)
 
 
 class IdentityConflictTests(unittest.TestCase):
@@ -116,6 +120,109 @@ class IdentityConflictTests(unittest.TestCase):
             ["first-user", "second-user"],
         )
         self.assertEqual(access_group_members(users, "EPIC-RL"), ["first-user"])
+
+    def test_reports_concrete_identity_changes(self) -> None:
+        users = [
+            {
+                "name": "liuhongbo",
+                "uid": 10000,
+                "gid": 10000,
+                "home": "/home/liuhongbo",
+                "shell": "/bin/bash",
+                "groups": ["EPIC-RL"],
+            },
+            {
+                "name": "new-user",
+                "uid": 10001,
+                "gid": 10001,
+                "home": "/home/new-user",
+                "shell": "/bin/bash",
+                "groups": ["EPIC-RL"],
+            },
+        ]
+        access_groups = [
+            {"name": "EPIC-RL", "gid": 20000},
+            {"name": "CV3D", "gid": 20003},
+        ]
+        passwd = {
+            "liuhongbo": [
+                "x",
+                "10000",
+                "10000",
+                "",
+                "/old/home",
+                "/bin/sh",
+            ],
+        }
+        groups = {
+            "liuhongbo": ["x", "10000", ""],
+            "EPIC-RL": ["x", "20000", "liuhongbo,former-user"],
+        }
+        home_checks = [
+            {
+                "item": users[0],
+                "stat": {"exists": False},
+            },
+            {
+                "item": users[1],
+                "stat": {"exists": False},
+            },
+        ]
+
+        self.assertEqual(
+            identity_change_plan(
+                users,
+                access_groups,
+                passwd,
+                groups,
+                home_checks,
+            ),
+            [
+                "CREATE PRIVATE GROUP new-user gid=10001",
+                "CREATE ACCESS GROUP CV3D gid=20003",
+                "UPDATE USER liuhongbo home=/old/home -> /home/liuhongbo; "
+                "shell=/bin/sh -> /bin/bash",
+                "CREATE HOME liuhongbo path=/home/liuhongbo",
+                "CREATE USER new-user uid=10001 gid=10001 "
+                "home=/home/new-user shell=/bin/bash",
+                "UPDATE ACCESS GROUP EPIC-RL add=[new-user] remove=[former-user]",
+            ],
+        )
+
+    def test_reports_no_changes_for_matching_identity_state(self) -> None:
+        users = [
+            {
+                "name": "liuhongbo",
+                "uid": 10000,
+                "gid": 10000,
+                "home": "/home/liuhongbo",
+                "shell": "/bin/bash",
+                "groups": ["EPIC-RL"],
+            },
+        ]
+
+        self.assertEqual(
+            identity_change_plan(
+                users,
+                [{"name": "EPIC-RL", "gid": 20000}],
+                {
+                    "liuhongbo": [
+                        "x",
+                        "10000",
+                        "10000",
+                        "",
+                        "/home/liuhongbo",
+                        "/bin/bash",
+                    ],
+                },
+                {
+                    "liuhongbo": ["x", "10000", ""],
+                    "EPIC-RL": ["x", "20000", "liuhongbo"],
+                },
+                [{"item": users[0], "stat": {"exists": True}}],
+            ),
+            [],
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,34 @@
+---
+# The user module can predict a change but cannot show field-level diffs. This
+# read-only phase makes the planned account and access-group changes explicit.
+- name: Check whether each expected home directory exists
+  ansible.builtin.stat:
+    path: "{{ item.home }}"
+    follow: false
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: epic_identity_home_checks
+
+- name: Calculate the read-only identity change plan
+  ansible.builtin.set_fact:
+    epic_identity_change_plan: >-
+      {{
+        cluster_users
+        | epic_identity_change_plan(
+            access_groups,
+            ansible_facts.getent_passwd,
+            ansible_facts.getent_group,
+            epic_identity_home_checks.results
+          )
+      }}
+
+- name: Display the identity change plan before convergence
+  ansible.builtin.debug:
+    msg: |-
+      Identity change plan for {{ inventory_hostname }}:
+      {{
+        epic_identity_change_plan | join('\n')
+        if epic_identity_change_plan | length > 0
+        else 'No identity changes required.'
+      }}

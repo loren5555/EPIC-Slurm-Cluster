@@ -20,6 +20,92 @@ def access_group_members(
     ]
 
 
+def _group_members(fields: Sequence[Any], record: str) -> set[str]:
+    members: set[str] = set()
+    for entry in _entry_records(fields, record):
+        try:
+            member_field = str(entry[2])
+        except IndexError as error:
+            raise ValueError(f"invalid getent record for {record}: {fields!r}") from error
+        members.update(member for member in member_field.split(",") if member)
+    return members
+
+
+def identity_change_plan(
+    cluster_users: Sequence[Mapping[str, Any]],
+    access_groups: Sequence[Mapping[str, Any]],
+    passwd_entries: Mapping[str, Sequence[Any]],
+    group_entries: Mapping[str, Sequence[Any]],
+    home_checks: Sequence[Mapping[str, Any]],
+) -> list[str]:
+    """Describe every identity change the convergence tasks will request."""
+
+    changes: list[str] = []
+    home_exists = {
+        str(result["item"]["name"]): bool(result.get("stat", {}).get("exists"))
+        for result in home_checks
+    }
+
+    for user in cluster_users:
+        name = str(user["name"])
+        if name not in group_entries:
+            changes.append(f"CREATE PRIVATE GROUP {name} gid={int(user['gid'])}")
+
+    for group in access_groups:
+        name = str(group["name"])
+        if name not in group_entries:
+            changes.append(f"CREATE ACCESS GROUP {name} gid={int(group['gid'])}")
+
+    for user in cluster_users:
+        name = str(user["name"])
+        expected_home = str(user["home"])
+        expected_shell = str(user["shell"])
+
+        if name not in passwd_entries:
+            changes.append(
+                f"CREATE USER {name} uid={int(user['uid'])} "
+                f"gid={int(user['gid'])} home={expected_home} shell={expected_shell}"
+            )
+            continue
+
+        fields = _entry_records(passwd_entries[name], f"passwd:{name}")[0]
+        field_changes: list[str] = []
+        actual_home = str(fields[4])
+        actual_shell = str(fields[5])
+        if actual_home != expected_home:
+            field_changes.append(f"home={actual_home} -> {expected_home}")
+        if actual_shell != expected_shell:
+            field_changes.append(f"shell={actual_shell} -> {expected_shell}")
+        if field_changes:
+            changes.append(f"UPDATE USER {name} {'; '.join(field_changes)}")
+
+        if name not in home_exists:
+            raise ValueError(f"missing home-directory check for user {name}")
+        if not home_exists[name]:
+            changes.append(f"CREATE HOME {name} path={expected_home}")
+
+    for group in access_groups:
+        name = str(group["name"])
+        desired = set(access_group_members(cluster_users, name))
+        if name not in group_entries:
+            if desired:
+                changes.append(
+                    f"SET ACCESS GROUP {name} members=[{','.join(sorted(desired))}]"
+                )
+            continue
+
+        current = _group_members(group_entries[name], f"group:{name}")
+        added = sorted(desired - current)
+        removed = sorted(current - desired)
+        if added or removed:
+            changes.append(
+                f"UPDATE ACCESS GROUP {name} "
+                f"add=[{','.join(added)}] remove=[{','.join(removed)}]"
+            )
+
+    return changes
+
+
 def _entry_records(fields: Sequence[Any], record: str) -> list[Sequence[Any]]:
     """Normalize one getent record or duplicate same-name NSS records."""
 
@@ -133,5 +219,6 @@ class FilterModule:
     def filters(self) -> dict[str, Any]:
         return {
             "epic_access_group_members": access_group_members,
+            "epic_identity_change_plan": identity_change_plan,
             "epic_identity_conflicts": identity_conflicts,
         }
