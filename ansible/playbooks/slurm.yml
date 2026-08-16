@@ -1,0 +1,9 @@
+---
+# Manage only the already installed Slurm configuration. Package installation,
+# MUNGE keys, accounting, OOD, and monitoring remain separate work packages.
+- name: Synchronize the EPIC Slurm configuration
+  hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - slurm

@@ -1,0 +1,19 @@
+---
+# Reconfigure the controller before restarting compute daemons. Handler order is
+# file order, so every node sees an already updated controller configuration.
+- name: Reconfigure slurmctld
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/scontrol
+      - reconfigure
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
+- name: Restart slurmd
+  ansible.builtin.systemd_service:
+    name: slurmd.service
+    state: restarted
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['compute_nodes']

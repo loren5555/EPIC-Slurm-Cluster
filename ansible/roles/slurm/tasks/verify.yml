@@ -1,0 +1,89 @@
+---
+- name: Apply pending Slurm configuration changes
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+
+- name: Confirm that the controller answers RPC requests
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/scontrol
+      - ping
+  register: slurm_controller_ping
+  changed_when: false
+  failed_when:
+    - slurm_controller_ping.rc != 0 or 'is UP' not in slurm_controller_ping.stdout
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
+- name: Wait for every compute node to register its current daemon data
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/scontrol
+      - show
+      - node
+      - "{{ item }}"
+  loop: "{{ groups['compute_nodes'] | sort }}"
+  loop_control:
+    label: "{{ item }}"
+  register: slurm_registered_nodes
+  changed_when: false
+  until:
+    - slurm_registered_nodes.rc == 0
+    - "'Version=' in slurm_registered_nodes.stdout"
+    - "'SlurmdStartTime=None' not in slurm_registered_nodes.stdout"
+  retries: 12
+  delay: 5
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
+- name: Require each registered node to advertise its declared GPU count
+  ansible.builtin.assert:
+    that:
+      - >-
+        (
+          'Gres=gpu:'
+          ~ (hostvars[item.item].slurm_gpu_count | string)
+        ) in item.stdout
+    fail_msg: >-
+      {{ item.item }} did not register the declared
+      gpu:{{ hostvars[item.item].slurm_gpu_count }} resource.
+    quiet: true
+  loop: "{{ slurm_registered_nodes.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
+- name: Read every host-specific partition
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/scontrol
+      - show
+      - partition
+      - "{{ item }}"
+  loop: "{{ groups['compute_nodes'] | sort }}"
+  loop_control:
+    label: "{{ item }}"
+  register: slurm_registered_partitions
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
+- name: Require each partition to select only its matching host
+  ansible.builtin.assert:
+    that:
+      - "('PartitionName=' ~ item.item) in item.stdout"
+      - "('Nodes=' ~ item.item) in item.stdout"
+      - "'Default=NO' in item.stdout"
+    fail_msg: "Unexpected partition registration for {{ item.item }}."
+    quiet: true
+  loop: "{{ slurm_registered_partitions.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']

@@ -1,0 +1,45 @@
+---
+- name: Preserve the standard Slurm configuration directory
+  ansible.builtin.file:
+    path: "{{ slurm_configuration_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the shared cluster and partition configuration
+  # Every host receives the same rendered file. A host-vars change is therefore
+  # visible to the controller and every compute daemon in one reviewed diff.
+  ansible.builtin.template:
+    src: slurm.conf.j2
+    dest: "{{ slurm_configuration_directory }}/slurm.conf"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: slurm_main_configuration
+  notify:
+    - Reconfigure slurmctld
+    - Restart slurmd
+
+- name: Install the management-class cgroup policy
+  ansible.builtin.template:
+    src: cgroup.conf.j2
+    dest: "{{ slurm_configuration_directory }}/cgroup.conf"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: slurm_cgroup_configuration
+  notify: Restart slurmd
+
+- name: Install host-local GPU discovery configuration
+  ansible.builtin.template:
+    src: gres.conf.j2
+    dest: "{{ slurm_configuration_directory }}/gres.conf"
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  register: slurm_gres_configuration
+  notify: Restart slurmd

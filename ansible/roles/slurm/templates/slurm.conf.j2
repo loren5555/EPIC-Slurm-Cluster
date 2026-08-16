@@ -1,0 +1,58 @@
+# This file is managed by Ansible. Edit inventory variables, not this host copy.
+
+# Cluster identity
+ClusterName={{ slurm_cluster_name }}
+SlurmctldHost={{ slurm_controller_host }}
+
+# Authentication and daemon users
+AuthType=auth/munge
+CredType=cred/munge
+SlurmUser=slurm
+SlurmdUser=root
+
+# Runtime and persistent state
+StateSaveLocation={{ slurm_controller_state_directory }}
+SlurmdSpoolDir={{ slurm_compute_spool_directory }}
+SlurmctldPidFile=/run/slurmctld/slurmctld.pid
+SlurmdPidFile=/run/slurmd/slurmd.pid
+
+# Logging
+SlurmctldLogFile={{ slurm_log_directory }}/slurmctld.log
+SlurmdLogFile={{ slurm_log_directory }}/slurmd.log
+SlurmctldDebug=info
+SlurmdDebug=info
+
+# Scheduling and resource selection
+SchedulerType=sched/backfill
+SelectType=select/cons_tres
+SelectTypeParameters=CR_Core_Memory
+GresTypes=gpu
+MpiDefault=none
+ReturnToService=2
+
+# Process tracking. Per-host enforcement is defined in cgroup.conf.
+ProctrackType=proctrack/cgroup
+TaskPlugin=task/affinity,task/cgroup
+
+# Compute nodes
+{% for node_name in groups['compute_nodes'] | sort %}
+{% set node = hostvars[node_name] %}
+NodeName={{ node_name }} \
+    CPUs={{ node.slurm_cpus }} \
+    Boards={{ node.slurm_boards }} \
+    SocketsPerBoard={{ node.slurm_sockets_per_board }} \
+    CoresPerSocket={{ node.slurm_cores_per_socket }} \
+    ThreadsPerCore={{ node.slurm_threads_per_core }} \
+    RealMemory={{ node.slurm_real_memory }} \
+    Gres=gpu:{{ node.slurm_gpu_count }} \
+    State=UNKNOWN
+{% endfor %}
+
+# One explicit partition per physical host. No partition is implicit or default.
+{% for node_name in groups['compute_nodes'] | sort %}
+PartitionName={{ node_name }} \
+    Nodes={{ node_name }} \
+    Default=NO \
+    MaxTime={{ slurm_partition_max_time }} \
+    State=UP
+{% endfor %}

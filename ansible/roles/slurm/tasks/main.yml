@@ -1,0 +1,8 @@
+---
+# Keep configuration mutation and Slurm's native runtime verification separate
+# so a failure is easy to locate in Ansible output.
+- name: Install the declared Slurm configuration
+  ansible.builtin.import_tasks: configure.yml
+
+- name: Activate and verify changed configuration
+  ansible.builtin.import_tasks: verify.yml

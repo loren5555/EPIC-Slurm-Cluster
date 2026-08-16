@@ -1,0 +1,15 @@
+---
+# Cluster-wide Slurm policy. Hardware belongs in inventory/host_vars so adding
+# a compute node changes data, not the configuration templates.
+slurm_cluster_name: epic
+# This names the current primary. The inventory may contain standby controller
+# hosts without being rejected; HA configuration will add their SlurmctldHost
+# entries when that work package is implemented.
+slurm_controller_host: epic-cluster-controller-01
+
+slurm_partition_max_time: "14-00:00:00"
+
+slurm_configuration_directory: /etc/slurm
+slurm_controller_state_directory: /var/lib/slurm/slurmctld
+slurm_compute_spool_directory: /var/lib/slurm/slurmd
+slurm_log_directory: /var/log/slurm

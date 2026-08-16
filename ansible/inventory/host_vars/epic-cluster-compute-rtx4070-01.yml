@@ -1,0 +1,12 @@
+---
+# Values preserve the currently validated RTX 4070 node configuration.
+slurm_cpus: 32
+slurm_boards: 1
+slurm_sockets_per_board: 1
+slurm_cores_per_socket: 16
+slurm_threads_per_core: 2
+slurm_real_memory: 126000
+
+# The GPU model and device files are discovered locally by AutoDetect=nvidia.
+# Inventory only declares the resource count that the node must register.
+slurm_gpu_count: 1

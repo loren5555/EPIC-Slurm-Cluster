@@ -1,7 +1,13 @@
 # EPIC Cluster Ansible Slurm Configuration Design
 
 Date: 2026-08-12  
-Status: Approved scope; pending implementation
+Status: Superseded by the current stack deployment guide
+
+> This document records the earlier two-partition design. The approved current
+> design uses one partition per compute host, partition-specific SlurmDBD
+> associations, and class-specific cgroup policy. Use
+> [`docs/slurm-stack-deployment-guide.md`](../../slurm-stack-deployment-guide.md)
+> for implementation. This file remains only as decision history.
 
 ## 1. Goal and Scope
 
@@ -100,7 +106,7 @@ sessions remains separate and is not modified by this role.
 Each compute node receives a short host-local `gres.conf` with explicit NVIDIA
 device files:
 
-- A100: `Name=gpu Type=a100-sxm4 File=/dev/nvidia[0-7]`
+- A100: `Name=gpu Type=nvidia_a100-sxm4-40gb File=/dev/nvidia[0-7]`
 - RTX 4070: `Name=gpu Type=rtx4070 File=/dev/nvidia0`
 
 The controller receives an empty, comment-only `gres.conf`. Explicit device

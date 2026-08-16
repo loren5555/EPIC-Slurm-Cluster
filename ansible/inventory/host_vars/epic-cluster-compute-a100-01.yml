@@ -1,0 +1,13 @@
+---
+# Values are taken from the validated slurmd -C output, with a small memory
+# reserve left for the operating system and node daemons.
+slurm_cpus: 128
+slurm_boards: 1
+slurm_sockets_per_board: 2
+slurm_cores_per_socket: 64
+slurm_threads_per_core: 1
+slurm_real_memory: 1024000
+
+# The GPU model and device files are discovered locally by AutoDetect=nvidia.
+# Inventory only declares the resource count that the node must register.
+slurm_gpu_count: 8

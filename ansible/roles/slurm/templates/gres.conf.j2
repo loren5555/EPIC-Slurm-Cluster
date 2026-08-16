@@ -1,0 +1,7 @@
+# This file is managed by Ansible.
+{% if inventory_hostname in groups['compute_nodes'] %}
+# Discover NVIDIA GPU models and device files from the local driver.
+AutoDetect=nvidia
+{% else %}
+# The controller has no local generic resources.
+{% endif %}
