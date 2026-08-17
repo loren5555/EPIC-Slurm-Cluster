@@ -1,0 +1,17 @@
+# This file is managed by Ansible. It contains a database credential.
+
+# SlurmDBD identity and authentication.
+AuthType=auth/munge
+DbdHost={{ slurmdbd_host }}
+SlurmUser=slurm
+
+# Local MariaDB storage.
+StorageType=accounting_storage/mysql
+StorageHost=localhost
+StorageLoc={{ slurmdbd_database_name }}
+StorageUser={{ slurmdbd_database_user }}
+StoragePass={{ slurmdbd_storage_password }}
+
+# Standard runtime paths.
+LogFile=/var/log/slurm/slurmdbd.log
+PidFile=/run/slurmdbd/slurmdbd.pid

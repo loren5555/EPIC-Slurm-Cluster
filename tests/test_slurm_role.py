@@ -80,18 +80,17 @@ class SlurmRoleTests(unittest.TestCase):
         for setting in forbidden_settings:
             self.assertNotIn(setting, template)
 
-    def test_cgroup_policy_is_selected_by_management_class(self) -> None:
+    def test_all_slurm_jobs_use_the_same_cgroup_constraints(self) -> None:
         template = read_ansible_file("roles/slurm/templates/cgroup.conf.j2")
 
-        self.assertIn("inventory_hostname in groups['controlled_compute_nodes']", template)
-        self.assertIn("inventory_hostname in groups['free_compute_nodes']", template)
-        self.assertNotIn("slurm_management_class", template)
         self.assertIn("ConstrainCores=yes", template)
         self.assertIn("ConstrainRAMSpace=yes", template)
         self.assertIn("ConstrainDevices=yes", template)
-        self.assertIn("ConstrainCores=no", template)
-        self.assertIn("ConstrainRAMSpace=no", template)
-        self.assertIn("ConstrainDevices=no", template)
+        self.assertNotIn("controlled_compute_nodes", template)
+        self.assertNotIn("free_compute_nodes", template)
+        self.assertNotIn("ConstrainCores=no", template)
+        self.assertNotIn("ConstrainRAMSpace=no", template)
+        self.assertNotIn("ConstrainDevices=no", template)
 
     def test_gres_configuration_uses_nvidia_autodetection(self) -> None:
         template = read_ansible_file("roles/slurm/templates/gres.conf.j2")

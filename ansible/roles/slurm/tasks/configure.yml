@@ -22,7 +22,7 @@
     - Reconfigure slurmctld
     - Restart slurmd
 
-- name: Install the management-class cgroup policy
+- name: Install the shared Slurm job cgroup policy
   ansible.builtin.template:
     src: cgroup.conf.j2
     dest: "{{ slurm_configuration_directory }}/cgroup.conf"

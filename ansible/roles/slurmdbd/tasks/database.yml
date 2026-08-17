@@ -1,0 +1,98 @@
+---
+# Prepare the local MariaDB database used by SlurmDBD.
+#
+# This task file:
+# 1. Creates the accounting database when it does not exist.
+# 2. Tests the database login using the password loaded from Ansible Vault.
+# 3. Creates the local database user or synchronizes its password when needed.
+# 4. Grants that user access only to the Slurm accounting database.
+# 5. Verifies the final credentials before SlurmDBD is started.
+#
+# SlurmDBD creates and maintains its own table schema. Ansible manages only the
+# database, login credentials, and privileges required for SlurmDBD to start.
+
+- name: Check whether the accounting database already exists
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - --user=root
+      - --batch
+      - --skip-column-names
+      - --execute
+      - >-
+        SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+        WHERE SCHEMA_NAME='{{ slurmdbd_database_name }}';
+  register: slurmdbd_database_query
+  changed_when: false
+
+- name: Create the accounting database when it is absent
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - --user=root
+  args:
+    stdin: >-
+      CREATE DATABASE `{{ slurmdbd_database_name }}`
+      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  when: slurmdbd_database_name not in slurmdbd_database_query.stdout_lines
+
+- name: Check the current Slurm database credentials
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - "--user={{ slurmdbd_database_user }}"
+      - "--database={{ slurmdbd_database_name }}"
+      - --batch
+      - --skip-column-names
+      - --execute=SELECT 1;
+  environment:
+    MYSQL_PWD: "{{ slurmdbd_storage_password }}"
+  register: slurmdbd_database_login
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Create or update the Slurm database login
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - --user=root
+  args:
+    stdin: |
+      CREATE USER IF NOT EXISTS '{{ slurmdbd_database_user }}'@'localhost'
+        IDENTIFIED BY '{{ slurmdbd_storage_password }}';
+      ALTER USER '{{ slurmdbd_database_user }}'@'localhost'
+        IDENTIFIED BY '{{ slurmdbd_storage_password }}';
+  when: slurmdbd_database_login.rc != 0
+  no_log: true
+
+- name: Grant SlurmDBD full access to its database
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - --user=root
+  args:
+    stdin: >-
+      GRANT ALL PRIVILEGES ON `{{ slurmdbd_database_name }}`.*
+      TO '{{ slurmdbd_database_user }}'@'localhost';
+  changed_when: false
+
+- name: Confirm the Slurm database credentials after convergence
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - "--user={{ slurmdbd_database_user }}"
+      - "--database={{ slurmdbd_database_name }}"
+      - --batch
+      - --skip-column-names
+      - --execute=SELECT 1;
+  environment:
+    MYSQL_PWD: "{{ slurmdbd_storage_password }}"
+  changed_when: false
+  no_log: true

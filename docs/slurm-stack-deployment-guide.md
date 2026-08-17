@@ -55,11 +55,12 @@ free 主机把 Slurm 作为统一提交和 OOD 入口：
 
 - 保留普通 SSH 使用；
 - 不设置用户额度、并发上限、抢占或强制 QoS；
-- Slurm 作业不通过 cgroup 限制 CPU、内存和 GPU；
+- 通过 Slurm/OOD 启动的作业仍使用 cgroup 限制其申请到的 CPU、内存和 GPU；
+- 直接通过 SSH 启动的进程不进入 Slurm 作业 cgroup，仍可自由使用主机资源；
 - SSH 进程与 Slurm 作业可能互相争用资源，由实验室成员协调；
 - Slurm 仍记录通过 Slurm 启动的作业，但无法统计普通 SSH 进程。
 
-因此 `cgroup.conf` 必须按管理类别生成，不能再在所有计算节点使用完全相同的约束配置。
+因此所有计算节点使用相同的 Slurm cgroup 约束。controlled 与 free 的差异来自 SSH/GPU 访问方式和调度政策，不来自 Slurm 作业内部的资源约束。
 
 ### 2.4 Linux 用户、Slurm Account 与 Association
 
@@ -175,6 +176,7 @@ ansible/
 │   ├── users.yml
 │   ├── slurm_accounts.yml
 │   ├── slurm_partitions.yml
+│   ├── secrets.example.yml
 │   └── secrets.yml
 ├── playbooks/
 │   ├── slurm.yml
@@ -252,7 +254,7 @@ srun \
 
 ### 目的
 
-把当前可运行配置变成仓库中的声明式配置，同时完成每主机一个分区和分类型 cgroup 策略。此时仍不部署记账和权限强制。
+把当前可运行配置变成仓库中的声明式配置，同时完成每主机一个分区和统一的 Slurm 作业 cgroup 约束。此时仍不部署记账和权限强制。
 
 ### 配置变化
 
@@ -266,8 +268,8 @@ srun \
 - 所有分区 `Default=NO`；
 - 保留 `sched/backfill`、`select/cons_tres` 和 `CR_Core_Memory`；
 - 暂不添加 `AccountingStorageType`、`AccountingStorageTRES` 或 `AccountingStorageEnforce`；
-- controlled 节点启用 CPU、内存和设备约束；
-- free 节点不启用上述 cgroup 资源约束；
+- 所有计算节点的 Slurm 作业均启用 CPU、内存和设备约束；
+- free 节点的普通 SSH 进程不受这些 Slurm 作业 cgroup 约束；
 - `slurm.conf` 只声明每台主机的通用 GPU 数量，例如 `Gres=gpu:8`；
 - 计算节点的 `gres.conf` 使用 `AutoDetect=nvidia`，从本机驱动发现 GPU 型号和设备文件；
 - 当前不配置 GPU 类型和 `Feature`，用户按主机分区选择硬件，并统一使用 `--gres=gpu:N` 申请 GPU。
@@ -335,6 +337,8 @@ srun \
 
 ### 配置原则
 
+- MariaDB 和 SlurmDBD 软件包由管理员在控制节点手工安装；
+- Ansible 只接管配置文件、数据库初始化和服务状态，不安装或升级系统软件包；
 - SlurmDBD 使用当前 Slurm 25.11 系列软件源；
 - 本工作包不同时升级 Slurm 大版本；
 - MariaDB 只监听本机，SlurmDBD 通过本机数据库连接；
@@ -377,7 +381,59 @@ PidFile=/run/slurmdbd/slurmdbd.pid
 
 ### 操作
 
-首次建立 Vault 文件时，根据 Ansible 提示设置 Vault 解锁密码：
+#### 1. 确认软件来源并手工安装
+
+先确认控制节点的软件源能够提供 MariaDB，并且 `slurmdbd` 候选版本属于当前使用的 Slurm 25.11 系列：
+
+```bash
+# Refresh package metadata without installing or upgrading packages.
+sudo apt update
+
+# Inspect the installed and candidate versions before changing the system.
+apt-cache policy \
+  mariadb-server \
+  slurmdbd
+
+# Preview dependencies, upgrades, and removals caused by the installation.
+sudo apt-get \
+  --simulate \
+  install \
+  mariadb-server \
+  slurmdbd
+```
+
+预期 `slurmdbd` 的 Candidate 为 `25.11.x`。模拟结果可以安装新的 MariaDB 依赖和同一 Slurm 25.11 系列的软件包，但不能删除 `slurmctld`、MUNGE 或其他现有集群组件，也不能把 Slurm 切换到其他主版本。
+
+确认模拟结果后再正式安装：
+
+```bash
+# Install only the accounting database and daemon selected above.
+sudo apt install \
+  mariadb-server \
+  slurmdbd
+
+# Confirm the installed daemon belongs to the current Slurm release series.
+slurmdbd -V
+
+# Record the exact installed package versions for troubleshooting.
+dpkg-query -W \
+  -f='${Package}\t${Version}\n' \
+  mariadb-server \
+  slurmdbd
+```
+
+预期 `slurmdbd -V` 输出 `25.11.x`。此时 MariaDB 通常已经启动；SlurmDBD 可能因为尚未生成 `/etc/slurm/slurmdbd.conf` 而没有启动，这部分由下一阶段的 Ansible 配置完成，不需要手工编辑配置文件。
+
+#### 2. 建立加密数据库凭据
+
+首先生成一个只包含十六进制字符的数据库密码。该命令只生成值，不会修改系统；把输出复制到下一步打开的 Vault 编辑器中：
+
+```bash
+# Generate a password that is safe in both MariaDB SQL and slurmdbd.conf.
+openssl rand -hex 32
+```
+
+首次建立 Vault 文件时，根据 Ansible 提示设置 Vault 解锁密码。Vault 解锁密码用于以后运行 Ansible，不等于刚生成的数据库密码：
 
 ```bash
 # Create the encrypted deployment secret file once.
@@ -385,23 +441,36 @@ cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
 ansible-vault create vars/secrets.yml
 ```
 
-文件内容只需要保存数据库凭据：
+文件内容只需要保存数据库凭据。`slurmdbd_storage_password` 填写上一步生成的值：
 
 ```yaml
 ---
 slurmdbd_storage_password: "replace-with-generated-password"
 ```
 
-完成对应 Ansible 角色后执行：
+#### 3. 使用 Ansible 配置数据库和服务
+
+Ansible 从这里开始只管理 MariaDB 参数、数据库和数据库用户、`slurmdbd.conf` 以及服务状态，不调用 APT 安装或升级软件包。按顺序检查和部署：
 
 ```bash
-# Preview package, database, and service changes.
+# Validate the playbook structure without changing the controller.
+ansible-playbook playbooks/slurmdbd.yml \
+  --syntax-check \
+  --ask-vault-pass
+
+# Preview configuration-file changes. Database initialization and live service
+# checks are deliberately skipped in Ansible check mode.
 ansible-playbook playbooks/slurmdbd.yml \
   --check \
   --diff \
   --ask-vault-pass
 
-# Install and start MariaDB and SlurmDBD.
+# Initialize the local database, install configuration files, and start both
+# services. This does not modify packages, slurm.conf, or Slurm associations.
+ansible-playbook playbooks/slurmdbd.yml \
+  --ask-vault-pass
+
+# A second run should find the same packages, files, database, and services.
 ansible-playbook playbooks/slurmdbd.yml \
   --ask-vault-pass
 ```
@@ -413,21 +482,48 @@ ansible-playbook playbooks/slurmdbd.yml \
 systemctl is-enabled mariadb slurmdbd
 systemctl is-active mariadb slurmdbd
 
-# SlurmDBD must answer through its authenticated protocol.
-sacctmgr ping
+# MariaDB must listen only on the controller loopback interface, while
+# SlurmDBD exposes its authenticated protocol on the default port 6819.
+sudo ss --listening --tcp --numeric --processes | grep -E ':3306|:6819'
+
+# The local database and protected SlurmDBD configuration must exist.
+sudo mariadb \
+  --batch \
+  --skip-column-names \
+  --execute="SHOW DATABASES LIKE 'slurm_acct_db';"
+
+sudo stat \
+  --format='%U:%G %a %n' \
+  /etc/slurm/slurmdbd.conf
 
 # Confirm that the daemon uses the expected major release.
 slurmdbd -V
+
+# Installing the accounting service must not disturb the existing controller.
+scontrol ping
 ```
 
-预期 `sacctmgr ping` 返回 SlurmDBD 为 `UP`，`slurmdbd -V` 为 `25.11.x`，日志中没有数据库权限、MUNGE 或表结构错误。
+预期结果：
+
+- 第二次运行 playbook 时 `changed=0`；
+- MariaDB 和 SlurmDBD 均为 `enabled`、`active`；
+- MariaDB 的 `3306` 监听地址为 `127.0.0.1`，SlurmDBD 监听 `6819`；
+- 数据库查询返回 `slurm_acct_db`；
+- `/etc/slurm/slurmdbd.conf` 为 `slurm:slurm 600`；
+- `slurmdbd -V` 为 `25.11.x`，日志中没有数据库权限、MUNGE 或表结构错误；
+- `scontrol ping` 仍显示当前控制器为 `UP`。
+
+此工作包尚未在 `slurm.conf` 中设置 `AccountingStorageType` 和 `AccountingStorageHost`，因此不在这里运行 `sacctmgr ping`。工包 3 连接 slurmctld 后，再通过 `sacctmgr ping` 验证完整的 Slurm 客户端到 SlurmDBD 链路。
 
 ### 停止条件
 
+- APT 候选版本不是 Slurm `25.11.x`；
+- APT 模拟安装会删除现有 Slurm、MUNGE 或其他集群组件；
 - MariaDB 或 SlurmDBD 无法连续启动；
 - SlurmDBD 与控制器不是同一个 Slurm 主版本；
 - 数据库密码以明文进入未加密变量文件；
-- `sacctmgr ping` 不稳定；
+- MariaDB 出现在非 loopback 地址上；
+- SlurmDBD 无法初始化数据库表或监听 `6819`；
 - 当前 `scontrol ping` 或已有作业受到影响。
 
 ## 8. 工作包 3：开启作业记录，不强制权限
@@ -859,6 +955,23 @@ OOD 不属于本轮 Slurm 基础部署，在前七个工作包稳定后单独实
 - 各计算主机 Home 和本地存储仍保持独立；
 - 可选 NFS 只作为附加网络路径，掉线不能阻塞登录、Slurm、Home 或本地作业；
 - 旧控制节点只作为备用 `slurmctld` 和紧急命令行入口，不运行 OOD。
+
+### NUMA 与 GPU 亲和性开关
+
+OOD IAPP 表单后续增加一个默认关闭的“NUMA/GPU 亲和优化”开关。这个开关只影响当前 IAPP 作业的资源绑定参数，不改变分区、默认内存或 cgroup 策略。
+
+关闭时，IAPP 只按用户填写的 CPU、内存和 GPU 数量提交作业。开启时，提交模板附加以下 Slurm 参数：
+
+```text
+--sockets-per-node=1
+--cpu-bind=cores
+--mem-bind=local
+--gres-flags=enforce-binding
+```
+
+开启后的目标是让 CPU 核心集中在一个 socket，将进程绑定到已分配核心，优先使用对应 NUMA 节点的本地内存，并要求 CPU 与所分配 GPU 的 socket 亲和关系一致。该选项适合 A100 上的单 socket、GPU 密集或 CPU/GPU 通信密集任务。
+
+如果用户申请的 CPU、内存或 GPU 超过单个 socket 能提供的范围，OOD 不应生成上述绑定参数，并应提示用户关闭该选项或减少资源请求。普通任务默认保持关闭，避免因为亲和性要求导致本来可运行的作业长期等待。
 
 ## 14. 新增计算节点流程
 

@@ -1,0 +1,12 @@
+---
+# Configure the manually installed accounting services without connecting
+# slurmctld to SlurmDBD yet.
+# Controller accounting settings and associations are separate work packages.
+- name: Configure MariaDB and SlurmDBD
+  hosts: controllers
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../vars/secrets.yml
+  roles:
+    - slurmdbd

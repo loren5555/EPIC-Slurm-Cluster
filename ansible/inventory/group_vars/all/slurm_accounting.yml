@@ -1,0 +1,13 @@
+---
+# SlurmDBD and MariaDB run together on the active controller. These variables
+# describe the service layout; the database password stays in Ansible Vault.
+slurmdbd_host: "{{ slurm_controller_host }}"
+slurmdbd_database_name: slurm_acct_db
+slurmdbd_database_user: slurm
+slurmdbd_port: 6819
+
+# Four GiB is deliberately modest for the current controller and can be
+# lowered here later without changing the role.
+mariadb_innodb_buffer_pool_size: 4G
+mariadb_innodb_lock_wait_timeout: 900
+mariadb_max_allowed_packet: 16M

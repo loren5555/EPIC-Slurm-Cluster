@@ -1,0 +1,35 @@
+---
+- name: Wait for the SlurmDBD protocol port
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ slurmdbd_port }}"
+    state: started
+    timeout: 30
+
+- name: Confirm that SlurmDBD initialized accounting tables
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/mariadb
+      - --protocol=socket
+      - "--user={{ slurmdbd_database_user }}"
+      - "--database={{ slurmdbd_database_name }}"
+      - --batch
+      - --skip-column-names
+      - --execute=SHOW TABLES;
+  environment:
+    MYSQL_PWD: "{{ slurmdbd_storage_password }}"
+  register: slurmdbd_tables
+  changed_when: false
+  failed_when: slurmdbd_tables.rc != 0 or slurmdbd_tables.stdout_lines | length == 0
+  no_log: true
+
+- name: Confirm that the existing Slurm controller still answers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/scontrol
+      - ping
+  register: slurm_controller_ping_after_slurmdbd
+  changed_when: false
+  failed_when: >-
+    slurm_controller_ping_after_slurmdbd.rc != 0 or
+    'is UP' not in slurm_controller_ping_after_slurmdbd.stdout
