@@ -4,16 +4,14 @@
   block:
     - name: Create missing Slurm Accounts
       ansible.builtin.command:
-        argv:
-          - /usr/bin/sacctmgr
-          - --immediate
-          - add
-          - account
-          - "Name={{ item.name }}"
-          - "Cluster={{ slurm_cluster_name }}"
-          - "Description={{ item.description }}"
-          - "Organization={{ item.organization }}"
-          - "Fairshare={{ item.fairshare }}"
+        argv: >-
+          {{ ['/usr/bin/sacctmgr', '--immediate', 'add', 'account',
+              'Name=' ~ item.name,
+              'Cluster=' ~ slurm_cluster_name,
+              'Description=' ~ item.description,
+              'Organization=' ~ item.organization,
+              'Fairshare=' ~ item.fairshare|string]
+             + (['GrpTRES=' ~ item.group_tres] if item.group_tres else []) }}
       loop: "{{ slurm_account_plan.add_accounts }}"
       loop_control:
         label: "{{ item.name }}"
@@ -36,14 +34,12 @@
 
     - name: Create missing cluster Account Associations
       ansible.builtin.command:
-        argv:
-          - /usr/bin/sacctmgr
-          - --immediate
-          - add
-          - account
-          - "Name={{ item.account }}"
-          - "Cluster={{ slurm_cluster_name }}"
-          - "Fairshare={{ item.fairshare }}"
+        argv: >-
+          {{ ['/usr/bin/sacctmgr', '--immediate', 'add', 'account',
+              'Name=' ~ item.account,
+              'Cluster=' ~ slurm_cluster_name,
+              'Fairshare=' ~ item.fairshare|string]
+             + (['GrpTRES=' ~ item.group_tres] if item.group_tres else []) }}
       loop: "{{ slurm_account_plan.add_cluster_associations }}"
       loop_control:
         label: "{{ item.account }}@{{ slurm_cluster_name }}"
@@ -64,23 +60,6 @@
       loop_control:
         label: "{{ item.account }}@{{ slurm_cluster_name }}"
 
-    - name: Create missing partition Account Associations
-      ansible.builtin.command:
-        argv: >-
-          {{ ['/usr/bin/sacctmgr', '--immediate', 'add', 'account',
-              'Name=' ~ item.account,
-              'Cluster=' ~ slurm_cluster_name,
-              'Partition=' ~ item.partition,
-              'Fairshare=' ~ item.fairshare|string]
-             + (['GrpTRES=' ~ item.group_tres] if item.group_tres else []) }}
-      loop: >-
-        {{ slurm_association_plan.add_associations
-           | selectattr('user', 'equalto', '')
-           | rejectattr('partition', 'equalto', '')
-           | list }}
-      loop_control:
-        label: "{{ item.account }}@{{ item.partition }}"
-
     - name: Create missing partition user Associations
       ansible.builtin.command:
         argv:
@@ -100,25 +79,6 @@
            | list }}
       loop_control:
         label: "{{ item.user }}@{{ item.partition }}"
-
-    - name: Converge Account Association shares and GPU limits
-      ansible.builtin.command:
-        argv: >-
-          {{ ['/usr/bin/sacctmgr', '--immediate', 'modify', 'account',
-              'where',
-              'Name=' ~ item.account,
-              'Cluster=' ~ slurm_cluster_name,
-              item.partition | slurm_partition_argument,
-              'set',
-              'Fairshare=' ~ item.fairshare|string]
-             + (['GrpTRES=' ~ item.group_tres_update]
-                if item.group_tres_update else []) }}
-      loop: >-
-        {{ slurm_association_plan.update_associations
-           | selectattr('user', 'equalto', '')
-           | list }}
-      loop_control:
-        label: "{{ item.account }}@{{ item.partition | default('all') }}"
 
     - name: Converge user Association shares
       ansible.builtin.command:
@@ -204,22 +164,3 @@
            | list }}
       loop_control:
         label: "{{ item.user }}@{{ item.partition | default('all') }}"
-
-    - name: Remove stale partition Account Associations
-      ansible.builtin.command:
-        argv:
-          - /usr/bin/sacctmgr
-          - --immediate
-          - delete
-          - account
-          - where
-          - "Name={{ item.account }}"
-          - "Cluster={{ slurm_cluster_name }}"
-          - >-
-            {{ item.partition | slurm_partition_argument }}
-      loop: >-
-        {{ slurm_association_plan.remove_associations
-           | selectattr('user', 'equalto', '')
-           | list }}
-      loop_control:
-        label: "{{ item.account }}@{{ item.partition }}"

@@ -46,7 +46,9 @@ def _parse_association_rows(rows: list[str], cluster_name: str) -> list[dict]:
     associations = []
 
     for row in rows:
-        columns = row.split("|")
+        # sacctmgr preserves hierarchy indentation in Account even with
+        # --parsable2, so normalize field edges before comparing names.
+        columns = [column.strip() for column in row.split("|")]
         if len(columns) < 6 or columns[0] != cluster_name:
             continue
 
@@ -82,6 +84,7 @@ def build_desired_state(
                 "description": account["description"],
                 "organization": account.get("organization", account["name"]),
                 "fairshare": member_counts[account["name"]],
+                "group_tres": account.get("group_tres", ""),
             }
         )
         associations.append(
@@ -90,7 +93,7 @@ def build_desired_state(
                 "user": "",
                 "partition": "",
                 "fairshare": member_counts[account["name"]],
-                "group_tres": "",
+                "group_tres": account.get("group_tres", ""),
             }
         )
 
@@ -98,8 +101,6 @@ def build_desired_state(
         allowed_accounts = set(partition.get("allowed_accounts", []))
         allowed_users = set(partition.get("allowed_users", []))
         denied_users = set(partition.get("denied_users", []))
-        account_limits = partition.get("account_limits", {})
-
         authorized_users = sorted(
             user["name"]
             for user in users
@@ -110,23 +111,6 @@ def build_desired_state(
             and user["name"] not in denied_users
         )
         authorization_matrix[partition["name"]] = authorized_users
-
-        partition_member_counts = Counter(
-            users_by_name[user_name]["slurm_account"]
-            for user_name in authorized_users
-        )
-
-        for account_name in sorted(partition_member_counts):
-            limit = account_limits.get(account_name, {})
-            associations.append(
-                {
-                    "account": account_name,
-                    "user": "",
-                    "partition": partition["name"],
-                    "fairshare": partition_member_counts[account_name],
-                    "group_tres": limit.get("group_tres", ""),
-                }
-            )
 
         for user_name in authorized_users:
             user = users_by_name[user_name]
@@ -164,9 +148,8 @@ def plan_association_changes(
     desired = {
         _association_key(association): association
         for association in desired_state["associations"]
-        if association["user"] or association["partition"]
+        if association["user"]
     }
-    managed_accounts = set(desired_state["managed_accounts"])
     managed_users = set(desired_state["managed_users"])
     managed_partitions = set(desired_state["managed_partitions"])
     current = {}
@@ -177,11 +160,8 @@ def plan_association_changes(
             continue
 
         is_managed_user = association["user"] in managed_users
-        is_managed_account = (
-            not association["user"] and association["account"] in managed_accounts
-        )
         is_managed_partition = association["partition"] in managed_partitions
-        if is_managed_user or is_managed_account or is_managed_partition:
+        if is_managed_user or (association["user"] and is_managed_partition):
             current[_association_key(association)] = association
 
     additions = [desired[key] for key in sorted(desired.keys() - current.keys())]
@@ -203,12 +183,12 @@ def plan_association_changes(
         and desired[key]["group_tres"] == current[key]["group_tres"]
     ]
 
-    # Keep global account records for history. Only stale user associations and
-    # partition-scoped account associations are removed by this role.
+    # Account Associations are managed by plan_account_changes. This planner
+    # owns only user Associations, including stale global user Associations.
     removals = [
         current[key]
         for key in sorted(current.keys() - desired.keys())
-        if current[key]["user"] or current[key]["partition"]
+        if current[key]["user"]
     ]
 
     return {
@@ -268,7 +248,7 @@ def plan_account_changes(
         desired_association = {
             "account": account_name,
             "fairshare": account["fairshare"],
-            "group_tres": "",
+            "group_tres": account["group_tres"],
         }
         current_association = current_cluster_associations.get(account_name)
 
@@ -276,11 +256,11 @@ def plan_account_changes(
             add_cluster_associations.append(desired_association)
         elif (
             current_association["fairshare"] != account["fairshare"]
-            or current_association["group_tres"] != ""
+            or current_association["group_tres"] != account["group_tres"]
         ):
             update = desired_association.copy()
             update["group_tres_update"] = _tres_update(
-                "",
+                account["group_tres"],
                 current_association["group_tres"],
             )
             update_cluster_associations.append(update)

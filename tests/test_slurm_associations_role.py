@@ -31,7 +31,11 @@ USERS = [
 
 ACCOUNTS = [
     {"name": "epic-rl", "description": "EPIC-RL members"},
-    {"name": "nue", "description": "NUE members"},
+    {
+        "name": "nue",
+        "description": "NUE members",
+        "group_tres": "gres/gpu=2",
+    },
 ]
 
 PARTITIONS = [
@@ -41,7 +45,6 @@ PARTITIONS = [
         "allowed_accounts": ["epic-rl", "nue"],
         "allowed_users": [],
         "denied_users": [],
-        "account_limits": {"nue": {"group_tres": "gres/gpu=2"}},
     },
     {
         "name": "epic-cluster-compute-rtx4070-01",
@@ -49,7 +52,6 @@ PARTITIONS = [
         "allowed_accounts": [],
         "allowed_users": ["liuhongbo"],
         "denied_users": [],
-        "account_limits": {},
     },
 ]
 
@@ -68,7 +70,7 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
             "Partition=gpu-host",
         )
 
-    def test_builds_explicit_partition_permissions_and_account_limit(self) -> None:
+    def test_builds_partition_permissions_and_global_account_limit(self) -> None:
         state = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
 
         self.assertEqual(
@@ -80,14 +82,21 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
             ["liuhongbo"],
         )
 
-        nue_a100 = next(
+        nue_global = next(
             association
             for association in state["associations"]
             if association["account"] == "nue"
             and association["user"] == ""
-            and association["partition"] == "epic-cluster-compute-a100-01"
+            and association["partition"] == ""
         )
-        self.assertEqual(nue_a100["group_tres"], "gres/gpu=2")
+        self.assertEqual(nue_global["group_tres"], "gres/gpu=2")
+
+        self.assertFalse(
+            any(
+                not association["user"] and association["partition"]
+                for association in state["associations"]
+            )
+        )
 
         self.assertFalse(
             any(
@@ -96,26 +105,26 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
             )
         )
 
-    def test_account_shares_follow_effective_partition_membership(self) -> None:
+    def test_account_shares_follow_declared_membership(self) -> None:
         state = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
 
-        epic_a100 = next(
+        epic_global = next(
             association
             for association in state["associations"]
             if association["account"] == "epic-rl"
             and association["user"] == ""
-            and association["partition"] == "epic-cluster-compute-a100-01"
+            and association["partition"] == ""
         )
-        epic_rtx4070 = next(
+        nue_global = next(
             association
             for association in state["associations"]
-            if association["account"] == "epic-rl"
+            if association["account"] == "nue"
             and association["user"] == ""
-            and association["partition"] == "epic-cluster-compute-rtx4070-01"
+            and association["partition"] == ""
         )
 
-        self.assertEqual(epic_a100["fairshare"], 2)
-        self.assertEqual(epic_rtx4070["fairshare"], 1)
+        self.assertEqual(epic_global["fairshare"], 2)
+        self.assertEqual(nue_global["fairshare"], 1)
 
     def test_plan_adds_updates_and_removes_only_managed_associations(self) -> None:
         desired = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
@@ -159,13 +168,14 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
                 for item in plan["remove_associations"]
             )
         )
-        self.assertTrue(
-            any(
-                item["account"] == "epic-rl"
-                and item["partition"] == "epic-cluster-compute-a100-01"
-                and item["group_tres_update"] == "cpu=-1"
-                for item in plan["update_associations"]
-            )
+        self.assertFalse(
+            any(not item["user"] for item in plan["add_associations"])
+        )
+        self.assertFalse(
+            any(not item["user"] for item in plan["update_associations"])
+        )
+        self.assertFalse(
+            any(not item["user"] for item in plan["remove_associations"])
         )
 
     def test_running_or_pending_jobs_block_association_removal(self) -> None:
@@ -233,7 +243,7 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
                 {
                     "account": "nue",
                     "fairshare": 1,
-                    "group_tres": "",
+                    "group_tres": "gres/gpu=2",
                 }
             ],
         )
@@ -245,8 +255,8 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
             "nue|NUE members|nue|",
         ]
         current_associations = [
-            "epic|epic-rl|||2||",
-            "epic|nue|||1||",
+            "epic| epic-rl|||2||",
+            "epic|  nue|||1|gres/gpu=2|",
         ]
 
         plan = plan_account_changes(
@@ -296,8 +306,8 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
                 {
                     "account": "nue",
                     "fairshare": 1,
-                    "group_tres": "",
-                    "group_tres_update": "gres/gpu=-1",
+                    "group_tres": "gres/gpu=2",
+                    "group_tres_update": "gres/gpu=2",
                 },
             ],
         )
@@ -356,11 +366,19 @@ class SlurmAssociationRoleTests(unittest.TestCase):
         self.assertNotIn("item.account not in", converge)
         self.assertIn("slurm_account_plan(", plan)
 
+    def test_role_does_not_manage_partition_account_associations(self) -> None:
+        converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
+
+        self.assertNotIn("Create missing partition Account Associations", converge)
+        self.assertNotIn("Remove stale partition Account Associations", converge)
+
     def test_manifest_declares_confirmed_partition_policy(self) -> None:
         partitions = read_ansible_file("vars/slurm_partitions.yml")
+        accounts = read_ansible_file("vars/slurm_accounts.yml")
 
         self.assertIn("allowed_users:\n      - liuhongbo", partitions)
-        self.assertIn("group_tres: gres/gpu=2", partitions)
+        self.assertNotIn("account_limits:", partitions)
+        self.assertIn("group_tres: gres/gpu=2", accounts)
 
         users = read_ansible_file("vars/users.yml")
         cluster_user_section = users.split("access_groups:", maxsplit=1)[0]

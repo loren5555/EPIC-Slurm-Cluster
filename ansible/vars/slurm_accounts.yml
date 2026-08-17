@@ -21,6 +21,8 @@ slurm_accounts:
   - name: nue
     description: NUE members
     organization: NUE
+    # Limit all concurrent NUE jobs in this cluster to two GPUs in total.
+    group_tres: gres/gpu=2
 
   - name: individual
     description: Users without an organization account

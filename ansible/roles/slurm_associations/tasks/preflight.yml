@@ -41,11 +41,9 @@
       - item.allowed_accounts | difference(slurm_declared_account_names) | length == 0
       - item.allowed_users | difference(slurm_declared_user_names) | length == 0
       - item.denied_users | difference(slurm_declared_user_names) | length == 0
-      - item.account_limits.keys() | difference(slurm_declared_account_names) | length == 0
-      - item.account_limits.keys() | difference(item.allowed_accounts) | length == 0
     fail_msg: >-
       Partition {{ item.name }} references an unknown compute host, Account,
-      user, or Account limit.
+      or user.
     quiet: true
   loop: "{{ slurm_partitions }}"
   loop_control:
