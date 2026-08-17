@@ -30,6 +30,7 @@ class SlurmRoleTests(unittest.TestCase):
             "inventory/host_vars/epic-cluster-compute-rtx4070-01.yml",
             "playbooks/slurm.yml",
             "roles/slurm/handlers/main.yml",
+            "roles/slurm/tasks/accounting.yml",
             "roles/slurm/tasks/main.yml",
             "roles/slurm/tasks/configure.yml",
             "roles/slurm/tasks/verify.yml",
@@ -67,18 +68,68 @@ class SlurmRoleTests(unittest.TestCase):
         self.assertNotIn("Feature=", template)
         self.assertNotIn("slurm_feature", template)
 
-    def test_work_package_one_does_not_enable_accounting_or_fair_share(self) -> None:
+    def test_accounting_records_jobs_without_enforcing_associations(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
 
+        expected_settings = (
+            "AccountingStorageType=accounting_storage/slurmdbd",
+            "AccountingStorageHost={{ slurmdbd_host }}",
+            "AccountingStorageTRES=gres/gpu",
+            "JobAcctGatherType=jobacct_gather/cgroup",
+            "JobAcctGatherFrequency=30",
+        )
+
+        for setting in expected_settings:
+            self.assertIn(setting, template)
+
         forbidden_settings = (
-            "AccountingStorageType",
-            "AccountingStorageTRES",
             "AccountingStorageEnforce",
             "PriorityType=priority/multifactor",
+            "gres/gpu:a100",
+            "gres/gpu:rtx4070",
         )
 
         for setting in forbidden_settings:
             self.assertNotIn(setting, template)
+
+    def test_cluster_record_is_created_before_slurm_reconfiguration(self) -> None:
+        main_tasks = read_ansible_file("roles/slurm/tasks/main.yml")
+        accounting_path = ANSIBLE_DIRECTORY / "roles/slurm/tasks/accounting.yml"
+
+        self.assertTrue(accounting_path.is_file())
+        accounting_tasks = accounting_path.read_text(encoding="utf-8")
+
+        self.assertLess(
+            main_tasks.index("import_tasks: accounting.yml"),
+            main_tasks.index("import_tasks: verify.yml"),
+        )
+        self.assertIn("/usr/bin/sacctmgr", accounting_tasks)
+        self.assertIn("list\n      - cluster", accounting_tasks)
+        self.assertIn("--immediate", accounting_tasks)
+        self.assertIn("add\n      - cluster", accounting_tasks)
+        self.assertIn("slurm_cluster_name", accounting_tasks)
+        self.assertNotIn("add\n      - account", accounting_tasks)
+        self.assertNotIn("add\n      - user", accounting_tasks)
+
+    def test_runtime_verification_pings_slurmdbd(self) -> None:
+        verification_tasks = read_ansible_file("roles/slurm/tasks/verify.yml")
+
+        self.assertIn("/usr/bin/sacctmgr", verification_tasks)
+        self.assertIn("- ping", verification_tasks)
+        self.assertIn("is UP", verification_tasks)
+
+    def test_shared_slurm_configuration_is_reloaded_without_daemon_restart(self) -> None:
+        configuration_tasks = read_ansible_file("roles/slurm/tasks/configure.yml")
+        shared_configuration_task = configuration_tasks.split(
+            "- name: Install the shared cluster and partition configuration",
+            maxsplit=1,
+        )[1].split(
+            "- name: Install the shared Slurm job cgroup policy",
+            maxsplit=1,
+        )[0]
+
+        self.assertIn("Reconfigure Slurm daemons", shared_configuration_task)
+        self.assertNotIn("Restart slurmd", shared_configuration_task)
 
     def test_all_slurm_jobs_use_the_same_cgroup_constraints(self) -> None:
         template = read_ansible_file("roles/slurm/templates/cgroup.conf.j2")

@@ -18,9 +18,7 @@
     mode: "0644"
     backup: true
   register: slurm_main_configuration
-  notify:
-    - Reconfigure slurmctld
-    - Restart slurmd
+  notify: Reconfigure Slurm daemons
 
 - name: Install the shared Slurm job cgroup policy
   ansible.builtin.template:

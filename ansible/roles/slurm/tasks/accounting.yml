@@ -1,0 +1,32 @@
+---
+# slurm.conf has already been written, so sacctmgr can now locate SlurmDBD.
+# Create only the cluster record here; accounts and users belong to work
+# package 4 and no association is enforced in this work package.
+- name: Read the registered SlurmDBD clusters
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - list
+      - cluster
+      - format=Cluster
+  register: slurm_accounting_clusters
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
+- name: Register this Slurm cluster when it is absent
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --immediate
+      - add
+      - cluster
+      - "{{ slurm_cluster_name }}"
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+    - >-
+      slurm_cluster_name not in
+      (slurm_accounting_clusters.stdout_lines | map('trim') | list)

@@ -1,7 +1,8 @@
 ---
-# Reconfigure the controller before restarting compute daemons. Handler order is
-# file order, so every node sees an already updated controller configuration.
-- name: Reconfigure slurmctld
+# Reconfiguration is forwarded by slurmctld so all daemons reread slurm.conf
+# without a process restart. cgroup.conf and gres.conf changes still require the
+# compute daemon restart handled below.
+- name: Reconfigure Slurm daemons
   ansible.builtin.command:
     argv:
       - /usr/bin/scontrol

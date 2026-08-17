@@ -34,6 +34,13 @@ ReturnToService=2
 ProctrackType=proctrack/cgroup
 TaskPlugin=task/affinity,task/cgroup
 
+# Store job and step records without enforcing associations or limits.
+AccountingStorageType=accounting_storage/slurmdbd
+AccountingStorageHost={{ slurmdbd_host }}
+AccountingStorageTRES=gres/gpu
+JobAcctGatherType=jobacct_gather/cgroup
+JobAcctGatherFrequency=30
+
 # Compute nodes
 {% for node_name in groups['compute_nodes'] | sort %}
 {% set node = hostvars[node_name] %}
