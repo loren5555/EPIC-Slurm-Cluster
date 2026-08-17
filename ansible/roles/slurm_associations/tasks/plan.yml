@@ -50,7 +50,11 @@
   ansible.builtin.set_fact:
     slurm_account_plan: >-
       {{ slurm_desired
-         | slurm_account_metadata_plan(slurm_current_accounts.stdout_lines) }}
+         | slurm_account_plan(
+             slurm_current_accounts.stdout_lines,
+             slurm_current_associations.stdout_lines,
+             slurm_cluster_name
+           ) }}
     slurm_default_account_plan: >-
       {{ slurm_desired
          | slurm_user_default_plan(slurm_current_users.stdout_lines) }}

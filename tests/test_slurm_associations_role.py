@@ -16,7 +16,7 @@ sys.path.insert(0, str(ANSIBLE_DIRECTORY / "filter_plugins"))
 from slurm_associations import (  # noqa: E402
     build_desired_state,
     find_jobs_blocking_removals,
-    plan_account_metadata_changes,
+    plan_account_changes,
     plan_association_changes,
     plan_user_default_changes,
     slurm_partition_argument,
@@ -184,23 +184,122 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
 
         self.assertEqual(blocked[0]["job_id"], "42")
 
-    def test_plans_account_metadata_and_user_default_changes(self) -> None:
+    def test_new_account_does_not_also_plan_a_cluster_association(self) -> None:
         desired = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
 
-        account_plan = plan_account_metadata_changes(
+        account_plan = plan_account_changes(
             desired,
             ["epic-rl|Old description|old-organization|"],
+            [],
+            "epic",
         )
+
         user_plan = plan_user_default_changes(
             desired,
             ["liuhongbo|wrong-account|", "yinjiajie|epic-rl|"],
         )
 
         self.assertEqual(account_plan["add_accounts"][0]["name"], "nue")
+        self.assertNotIn(
+            "nue",
+            [
+                item["account"]
+                for item in account_plan["add_cluster_associations"]
+            ],
+        )
         self.assertEqual(account_plan["update_accounts"][0]["name"], "epic-rl")
         self.assertEqual(
             [item["name"] for item in user_plan],
             ["liuhongbo", "wangjiaxiang"],
+        )
+
+    def test_existing_account_without_cluster_association_plans_one(self) -> None:
+        desired = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
+        current_accounts = [
+            "epic-rl|EPIC-RL members|epic-rl|",
+            "nue|NUE members|nue|",
+        ]
+
+        plan = plan_account_changes(
+            desired,
+            current_accounts,
+            ["epic|epic-rl|||2||"],
+            "epic",
+        )
+
+        self.assertEqual(
+            plan["add_cluster_associations"],
+            [
+                {
+                    "account": "nue",
+                    "fairshare": 1,
+                    "group_tres": "",
+                }
+            ],
+        )
+
+    def test_matching_account_and_cluster_association_need_no_change(self) -> None:
+        desired = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
+        current_accounts = [
+            "epic-rl|EPIC-RL members|epic-rl|",
+            "nue|NUE members|nue|",
+        ]
+        current_associations = [
+            "epic|epic-rl|||2||",
+            "epic|nue|||1||",
+        ]
+
+        plan = plan_account_changes(
+            desired,
+            current_accounts,
+            current_associations,
+            "epic",
+        )
+
+        self.assertEqual(
+            plan,
+            {
+                "add_accounts": [],
+                "update_accounts": [],
+                "add_cluster_associations": [],
+                "update_cluster_associations": [],
+            },
+        )
+
+    def test_wrong_cluster_fairshare_plans_cluster_association_update(self) -> None:
+        desired = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
+        current_accounts = [
+            "epic-rl|EPIC-RL members|epic-rl|",
+            "nue|NUE members|nue|",
+        ]
+        current_associations = [
+            "epic|epic-rl|||99||",
+            "epic|nue|||1|gres/gpu=8|",
+        ]
+
+        plan = plan_account_changes(
+            desired,
+            current_accounts,
+            current_associations,
+            "epic",
+        )
+
+        self.assertEqual(
+            plan["update_cluster_associations"],
+            [
+                {
+                    "account": "epic-rl",
+                    "fairshare": 2,
+                    "group_tres": "",
+                    "group_tres_update": "",
+                },
+                {
+                    "account": "nue",
+                    "fairshare": 1,
+                    "group_tres": "",
+                    "group_tres_update": "gres/gpu=-1",
+                },
+            ],
         )
 
 
@@ -248,6 +347,15 @@ class SlurmAssociationRoleTests(unittest.TestCase):
         self.assertGreaterEqual(converge.count("item.group_tres_update"), 2)
         self.assertIn("slurm_partition_argument", converge)
 
+    def test_account_and_cluster_association_logic_has_one_owner(self) -> None:
+        plan = read_ansible_file("roles/slurm_associations/tasks/plan.yml")
+        converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
+
+        self.assertIn("slurm_account_plan.add_cluster_associations", converge)
+        self.assertIn("slurm_account_plan.update_cluster_associations", converge)
+        self.assertNotIn("item.account not in", converge)
+        self.assertIn("slurm_account_plan(", plan)
+
     def test_manifest_declares_confirmed_partition_policy(self) -> None:
         partitions = read_ansible_file("vars/slurm_partitions.yml")
 
@@ -273,10 +381,9 @@ class SlurmAssociationRoleTests(unittest.TestCase):
         self.assertEqual(
             account_counts,
             {
-                "epic-rl": 9,
-                "individual": 7,
+                "epic-rl": 13,
                 "cgcl": 3,
-                "mllms": 17,
+                "mllms": 20,
                 "cv3d": 6,
                 "nue": 1,
             },

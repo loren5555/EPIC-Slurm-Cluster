@@ -53,7 +53,11 @@
            ) }}
     slurm_final_account_plan: >-
       {{ slurm_desired
-         | slurm_account_metadata_plan(slurm_final_accounts.stdout_lines) }}
+         | slurm_account_plan(
+             slurm_final_accounts.stdout_lines,
+             slurm_final_associations.stdout_lines,
+             slurm_cluster_name
+           ) }}
     slurm_final_default_account_plan: >-
       {{ slurm_desired
          | slurm_user_default_plan(slurm_final_users.stdout_lines) }}
@@ -67,6 +71,8 @@
       - slurm_final_association_plan.remove_associations | length == 0
       - slurm_final_account_plan.add_accounts | length == 0
       - slurm_final_account_plan.update_accounts | length == 0
+      - slurm_final_account_plan.add_cluster_associations | length == 0
+      - slurm_final_account_plan.update_cluster_associations | length == 0
       - slurm_final_default_account_plan | length == 0
     fail_msg: >-
       SlurmDBD does not match the declared Association state:

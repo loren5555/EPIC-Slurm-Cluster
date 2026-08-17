@@ -44,11 +44,23 @@
           - "Name={{ item.account }}"
           - "Cluster={{ slurm_cluster_name }}"
           - "Fairshare={{ item.fairshare }}"
-      loop: >-
-        {{ slurm_association_plan.add_associations
-           | selectattr('user', 'equalto', '')
-           | selectattr('partition', 'equalto', '')
-           | list }}
+      loop: "{{ slurm_account_plan.add_cluster_associations }}"
+      loop_control:
+        label: "{{ item.account }}@{{ slurm_cluster_name }}"
+
+    - name: Converge cluster Account Association shares and limits
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/bin/sacctmgr', '--immediate', 'modify', 'account',
+              'where',
+              'Name=' ~ item.account,
+              'Cluster=' ~ slurm_cluster_name,
+              'Partition=""',
+              'set',
+              'Fairshare=' ~ item.fairshare|string]
+             + (['GrpTRES=' ~ item.group_tres_update]
+                if item.group_tres_update else []) }}
+      loop: "{{ slurm_account_plan.update_cluster_associations }}"
       loop_control:
         label: "{{ item.account }}@{{ slurm_cluster_name }}"
 

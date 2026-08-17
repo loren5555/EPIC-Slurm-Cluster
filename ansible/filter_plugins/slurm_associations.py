@@ -159,11 +159,12 @@ def build_desired_state(
 def plan_association_changes(
     desired_state: dict, current_rows: list[str], cluster_name: str
 ) -> dict:
-    """Compare declared associations with SlurmDBD's parsable output."""
+    """Compare declared partition Associations with SlurmDBD state."""
 
     desired = {
         _association_key(association): association
         for association in desired_state["associations"]
+        if association["user"] or association["partition"]
     }
     managed_accounts = set(desired_state["managed_accounts"])
     managed_users = set(desired_state["managed_users"])
@@ -218,31 +219,78 @@ def plan_association_changes(
     }
 
 
-def plan_account_metadata_changes(desired_state: dict, current_rows: list[str]) -> dict:
-    """Plan Account entity creation and metadata repair."""
+def plan_account_changes(
+    desired_state: dict,
+    current_account_rows: list[str],
+    current_association_rows: list[str],
+    cluster_name: str,
+) -> dict:
+    """Plan Account entities and their cluster-level Associations."""
 
-    current = {}
-    for row in current_rows:
+    current_accounts = {}
+    for row in current_account_rows:
         columns = row.split("|")
         if len(columns) >= 3:
-            current[columns[0]] = {
+            current_accounts[columns[0]] = {
                 "description": columns[1],
                 "organization": columns[2],
             }
 
-    additions = []
-    updates = []
-    for account in desired_state["accounts"]:
-        if account["name"] not in current:
-            additions.append(account)
-        elif (
-            current[account["name"]]["description"] != account["description"]
-            or current[account["name"]]["organization"]
-            != account["organization"]
-        ):
-            updates.append(account)
+    current_cluster_associations = {
+        association["account"]: association
+        for association in _parse_association_rows(
+            current_association_rows,
+            cluster_name,
+        )
+        if not association["user"] and not association["partition"]
+    }
 
-    return {"add_accounts": additions, "update_accounts": updates}
+    add_accounts = []
+    update_accounts = []
+    add_cluster_associations = []
+    update_cluster_associations = []
+
+    for account in desired_state["accounts"]:
+        account_name = account["name"]
+
+        if account_name not in current_accounts:
+            # Adding an Account with Cluster= also creates this Association.
+            add_accounts.append(account)
+            continue
+
+        current_account = current_accounts[account_name]
+        if (
+            current_account["description"] != account["description"]
+            or current_account["organization"] != account["organization"]
+        ):
+            update_accounts.append(account)
+
+        desired_association = {
+            "account": account_name,
+            "fairshare": account["fairshare"],
+            "group_tres": "",
+        }
+        current_association = current_cluster_associations.get(account_name)
+
+        if current_association is None:
+            add_cluster_associations.append(desired_association)
+        elif (
+            current_association["fairshare"] != account["fairshare"]
+            or current_association["group_tres"] != ""
+        ):
+            update = desired_association.copy()
+            update["group_tres_update"] = _tres_update(
+                "",
+                current_association["group_tres"],
+            )
+            update_cluster_associations.append(update)
+
+    return {
+        "add_accounts": add_accounts,
+        "update_accounts": update_accounts,
+        "add_cluster_associations": add_cluster_associations,
+        "update_cluster_associations": update_cluster_associations,
+    }
 
 
 def plan_user_default_changes(desired_state: dict, current_rows: list[str]) -> list[dict]:
@@ -303,7 +351,7 @@ class FilterModule:
         return {
             "slurm_desired_state": build_desired_state,
             "slurm_association_plan": plan_association_changes,
-            "slurm_account_metadata_plan": plan_account_metadata_changes,
+            "slurm_account_plan": plan_account_changes,
             "slurm_user_default_plan": plan_user_default_changes,
             "slurm_blocking_jobs": find_jobs_blocking_removals,
             "slurm_partition_argument": slurm_partition_argument,
