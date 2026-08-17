@@ -50,12 +50,15 @@ cluster_users:
   - name: huodongkun
     uid: 10004
     gid: 10004
-    slurm_account: individual
+    slurm_account: epic-rl
     home: /home/huodongkun
     shell: /bin/bash
-    groups: []
+    groups:
+      - EPIC-RL
     ssh_access:
       - epic-cluster-compute-a100-01
+      - epic-cluster-compute-rtx4070-01
+
   - name: jiruinan
     uid: 10005
     gid: 10005
@@ -99,10 +102,11 @@ cluster_users:
   - name: liuyijing
     uid: 10009
     gid: 10009
-    slurm_account: individual
+    slurm_account: epic-rl
     home: /home/liuyijing
     shell: /bin/bash
-    groups: []
+    groups:
+      - EPIC-RL
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: yanghao
@@ -118,19 +122,21 @@ cluster_users:
   - name: xiangxuxin
     uid: 10011
     gid: 10011
-    slurm_account: individual
+    slurm_account: epic-rl
     home: /home/xiangxuxin
     shell: /bin/bash
-    groups: []
+    groups:
+      - EPIC-RL
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: jingnanwang
     uid: 10999
     gid: 10999
-    slurm_account: individual
+    slurm_account: epic-rl
     home: /home/jingnanwang
     shell: /bin/bash
-    groups: []
+    groups:
+      - EPIC-RL
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: chenjunhao
@@ -166,10 +172,11 @@ cluster_users:
   - name: yantianyu
     uid: 12001
     gid: 12001
-    slurm_account: individual
+    slurm_account: mllms
     home: /home/yantianyu
     shell: /bin/bash
-    groups: []
+    groups:
+      - MLLMs
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: lijiahui
@@ -205,10 +212,11 @@ cluster_users:
   - name: yuqiao
     uid: 12005
     gid: 12005
-    slurm_account: individual
+    slurm_account: mllms
     home: /home/yuqiao
     shell: /bin/bash
-    groups: []
+    groups:
+      - MLLMs
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: yangqingyi
@@ -254,10 +262,11 @@ cluster_users:
   - name: liuwenjie
     uid: 12010
     gid: 12010
-    slurm_account: individual
+    slurm_account: mllms
     home: /home/liuwenjie
     shell: /bin/bash
-    groups: []
+    groups:
+      - MLLMs
     ssh_access:
       - epic-cluster-compute-a100-01
   - name: zhangkaiyan

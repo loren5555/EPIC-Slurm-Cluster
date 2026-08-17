@@ -25,5 +25,6 @@ slurm_partitions:
     allowed_accounts: []
     allowed_users:
       - liuhongbo
+      - huodongkun
     denied_users: []
     account_limits: {}
