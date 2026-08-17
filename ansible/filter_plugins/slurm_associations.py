@@ -59,6 +59,8 @@ def _parse_association_rows(rows: list[str], cluster_name: str) -> list[dict]:
                 "partition": columns[3],
                 "fairshare": _normalize_fairshare(columns[4]),
                 "group_tres": columns[5],
+                "qos": columns[6] if len(columns) >= 7 else "",
+                "default_qos": columns[7] if len(columns) >= 8 else "",
             }
         )
 
@@ -66,7 +68,11 @@ def _parse_association_rows(rows: list[str], cluster_name: str) -> list[dict]:
 
 
 def build_desired_state(
-    users: list[dict], accounts: list[dict], partitions: list[dict]
+    users: list[dict],
+    accounts: list[dict],
+    partitions: list[dict],
+    default_qos: str = "",
+    project_qos_users: list[str] | None = None,
 ) -> dict:
     """Build the complete declared account and partition-association state."""
 
@@ -75,6 +81,7 @@ def build_desired_state(
     users_by_name = {user["name"]: user for user in users}
     associations = []
     authorization_matrix = {}
+    project_qos_users = set(project_qos_users or [])
 
     desired_accounts = []
     for account in accounts:
@@ -114,6 +121,9 @@ def build_desired_state(
 
         for user_name in authorized_users:
             user = users_by_name[user_name]
+            allowed_qos = [default_qos] if default_qos else []
+            if user_name in project_qos_users:
+                allowed_qos.append("project")
             associations.append(
                 {
                     "account": user["slurm_account"],
@@ -121,6 +131,8 @@ def build_desired_state(
                     "partition": partition["name"],
                     "fairshare": 1,
                     "group_tres": "",
+                    "qos": ",".join(allowed_qos),
+                    "default_qos": default_qos,
                 }
             )
 
@@ -170,6 +182,9 @@ def plan_association_changes(
         if (
             desired[key]["fairshare"] != current[key]["fairshare"]
             or desired[key]["group_tres"] != current[key]["group_tres"]
+            or desired[key].get("qos", "") != current[key].get("qos", "")
+            or desired[key].get("default_qos", "")
+            != current[key].get("default_qos", "")
         ):
             update = desired[key].copy()
             update["group_tres_update"] = _tres_update(
@@ -181,6 +196,9 @@ def plan_association_changes(
         for key in sorted(desired.keys() & current.keys())
         if desired[key]["fairshare"] == current[key]["fairshare"]
         and desired[key]["group_tres"] == current[key]["group_tres"]
+        and desired[key].get("qos", "") == current[key].get("qos", "")
+        and desired[key].get("default_qos", "")
+        == current[key].get("default_qos", "")
     ]
 
     # Account Associations are managed by plan_account_changes. This planner

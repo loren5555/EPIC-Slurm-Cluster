@@ -104,21 +104,22 @@ Ansible 为最终集合创建带分区名的用户 Association。不得为了方
   在整个集群中合计最多同时使用 2 张 GPU；
 - Job QoS 只用于排队优先级。它不承载资源限制，也不允许抢占运行中的作业。
 
-历史使用量采用 7 天半衰期。作业等待时间也参与优先级，防止长期等待的作业一直排不到。
+历史使用量采用 14 天半衰期。作业等待时间在 7 天达到最大值，防止长期等待
+的作业一直排不到。
 
 建议初始参数为：
 
 ```ini
 # Prefer users with less recent usage while still rewarding queue age.
 PriorityType=priority/multifactor
-PriorityDecayHalfLife=7-0
+PriorityDecayHalfLife=14-0
 PriorityCalcPeriod=5
 PriorityMaxAge=7-0
 PriorityWeightFairshare=10000
 PriorityWeightAge=3000
 PriorityWeightJobSize=0
 PriorityWeightPartition=0
-PriorityWeightQOS=1000
+PriorityWeightQOS=30000
 ```
 
 Fair-share 和 Job QoS 只改变排队顺序，不会在用户达到某个历史用量后禁止
@@ -797,14 +798,14 @@ AccountingStorageEnforce=limits,qos
 
 # Apply ordinary Fair Tree scheduling without hard quotas.
 PriorityType=priority/multifactor
-PriorityDecayHalfLife=7-0
+PriorityDecayHalfLife=14-0
 PriorityCalcPeriod=5
 PriorityMaxAge=7-0
 PriorityWeightFairshare=10000
 PriorityWeightAge=3000
 PriorityWeightJobSize=0
 PriorityWeightPartition=0
-PriorityWeightQOS=1000
+PriorityWeightQOS=30000
 
 # Running jobs must never be preempted by another job or QoS.
 PreemptType=preempt/none
@@ -820,38 +821,91 @@ Arguments 中加入 `--qos=project`，获得更高的排队优先级。两个 Qo
 GPU 数量、运行时长或累计用量限制，也不配置任何抢占关系。具体 QoS
 Association 由工作包 5 的 Ansible 配置统一维护。
 
+`project` 的 QoS Priority 为 100。在当前 Fair-share 最大 10000、Age 最大
+3000 的配置下，QoS Weight 30000 使 `project` 形成独立的最高优先级区间，
+而不是普通加分。未来如需较弱的人工提升，可在 10～20 范围增加
+`promoted` 类 QoS；本工作包暂不创建这些 QoS。
+
 GPU 分区的初始计费以 GPU 时间为主，CPU 时间只占很小权重；CPU-only 主机按 CPU 时间计费。具体权重放在每台主机的 host vars 中，以便异构主机独立调整：
 
 ```yaml
 # GPU host: one GPU-hour is the primary billing unit.
-slurm_tres_billing_weights:
-  cpu: 0.01
-  gres/gpu: 1
+slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"
 ```
 
 未来新增纯 CPU 服务器时使用：
 
 ```yaml
 # CPU host: one allocated CPU-hour is one billing unit.
-slurm_tres_billing_weights:
-  cpu: 1
+slurm_tres_billing_weights: "CPU=1"
 ```
 
 ### 操作
 
-先选择一个有权限测试用户和一个无权限测试用户。不要使用 `root` 或 Slurm 管理员做拒绝测试。
+先选择一个有权限测试用户和一个无权限测试用户。不要使用 `root` 或 Slurm
+管理员做拒绝测试。下面分两阶段部署，先建立 QoS 与用户许可，再开启强制。
 
 ```bash
-# Preview the enforcement and priority configuration.
+# Stage 1: preview the Job QoS and per-user Association changes.
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
-ansible-playbook playbooks/slurm.yml --check --diff --ask-vault-pass
+ansible-playbook playbooks/slurm_associations.yml --check --diff
 
-# Apply the reviewed policy.
-ansible-playbook playbooks/slurm.yml --ask-vault-pass
+# Create normal/project and assign the allowed QoS to each Association.
+ansible-playbook playbooks/slurm_associations.yml
+
+# A second run must report changed=0.
+ansible-playbook playbooks/slurm_associations.yml
+```
+
+第一阶段的预期结果是：`normal` 与 `project` 均存在，`project` 的 Priority 为
+100；所有分区 User Association 的 DefaultQOS 为 `normal`；只有
+`project_qos_users` 中的用户同时拥有 `normal,project`。以下命令使用
+`--parsable2`，不会截断较长的用户名或分区名：
+
+角色会读取 QoS 的全部资源、作业数和时长限制字段。若旧 QoS 带有任何未声明
+限制、Flag 或抢占关系，Ansible 会在写入前停止并显示原始记录，不会自动猜测
+哪些旧策略应当删除。
+
+```bash
+# Inspect Job QoS. Preempt and GrpTRES must remain empty.
+sacctmgr \
+  --noheader \
+  --parsable2 \
+  show qos \
+  where Name=normal,project \
+  format=Name,Priority,Preempt,GrpTRES |
+column --table --separator='|'
+
+# Inspect direct Association values instead of inherited values.
+sacctmgr \
+  --noheader \
+  --parsable2 \
+  show association \
+  WOPLimits \
+  where Cluster=epic \
+  format=Account,User,Partition,Fairshare,QOS,DefaultQOS,GrpTRES |
+column --table --separator='|'
+```
+
+确认第一阶段正确后再开启提交强制和 Fair-share：
+
+```bash
+# Stage 2: preview the controller policy and partition billing weights.
+ansible-playbook playbooks/slurm.yml --check --diff
+
+# Reconfigure Slurm with Association enforcement and multifactor priority.
+ansible-playbook playbooks/slurm.yml
+
+# A second run must report changed=0.
+ansible-playbook playbooks/slurm.yml
 
 # Inspect the active priority weights.
 sprio --weights
 sshare --all --long
+
+# Confirm the active enforcement, priority, and preemption settings.
+scontrol show config |
+grep -E 'AccountingStorageEnforce|Priority(Type|Weight|Decay|Calc|MaxAge)|Preempt'
 ```
 
 然后分别验证：
@@ -872,7 +926,8 @@ sshare --all --long
 - 权限按主机分区生效；
 - 除 `nue` 的集群级并发 2 卡上限外，没有累计额度或运行时长限制；
 - free 主机的普通 SSH 行为不改变；
-- `sprio` 显示 Fair-share 权重为 10000、Age 权重为 3000；
+- `sprio` 显示 Fair-share 权重为 10000、Age 权重为 3000、QoS 权重为
+  30000；
 - `sacct`、`sshare`、`sprio` 能解释作业记录和排队顺序。
 
 ### 停止条件

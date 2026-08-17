@@ -1,0 +1,44 @@
+---
+# Job QoS changes queue priority only. Resource limits remain on Account
+# Associations, and Slurm preemption is disabled cluster-wide.
+slurm_job_qos:
+  - name: normal
+    priority: 0
+
+  - name: project
+    priority: 100
+
+slurm_default_qos: normal
+
+# These users may explicitly submit a job with --qos=project.
+project_qos_users:
+  - liuhongbo
+
+# Read-only guard fields. Any value in these columns means an undeclared QoS
+# policy exists, so the role stops before enabling it accidentally.
+slurm_qos_guard_fields:
+  - Flags
+  - Preempt
+  - GrpJobs
+  - GrpJobsAccrue
+  - GrpSubmitJobs
+  - GrpTRES
+  - GrpTRESMins
+  - GrpTRESRunMins
+  - GrpWall
+  - MaxJobsAccruePerAccount
+  - MaxJobsAccruePerUser
+  - MaxJobsPerAccount
+  - MaxJobsPerUser
+  - MaxSubmitJobsPerAccount
+  - MaxSubmitJobsPerUser
+  - MaxTRESMinsPerJob
+  - MaxTRESPerAccount
+  - MaxTRESPerJob
+  - MaxTRESPerNode
+  - MaxTRESPerUser
+  - MaxTRESRunMinsPerAccount
+  - MaxTRESRunMinsPerUser
+  - MaxWallDurationPerJob
+  - MinPrioThreshold
+  - MinTRESPerJob

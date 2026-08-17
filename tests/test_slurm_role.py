@@ -68,13 +68,14 @@ class SlurmRoleTests(unittest.TestCase):
         self.assertNotIn("Feature=", template)
         self.assertNotIn("slurm_feature", template)
 
-    def test_accounting_records_jobs_without_enforcing_associations(self) -> None:
+    def test_accounting_enforces_declared_associations_and_limits(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
 
         expected_settings = (
             "AccountingStorageType=accounting_storage/slurmdbd",
             "AccountingStorageHost={{ slurmdbd_host }}",
             "AccountingStorageTRES=gres/gpu",
+            "AccountingStorageEnforce={{ slurm_accounting_storage_enforce }}",
             "JobAcctGatherType=jobacct_gather/cgroup",
             "JobAcctGatherFrequency=30",
         )
@@ -82,15 +83,61 @@ class SlurmRoleTests(unittest.TestCase):
         for setting in expected_settings:
             self.assertIn(setting, template)
 
-        forbidden_settings = (
-            "AccountingStorageEnforce",
-            "PriorityType=priority/multifactor",
-            "gres/gpu:a100",
-            "gres/gpu:rtx4070",
-        )
+        forbidden_settings = ("gres/gpu:a100", "gres/gpu:rtx4070")
 
         for setting in forbidden_settings:
             self.assertNotIn(setting, template)
+
+    def test_multifactor_priority_uses_fairshare_without_preemption(self) -> None:
+        template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
+        variables = read_ansible_file("inventory/group_vars/all/slurm.yml")
+
+        for setting in (
+            "PriorityType=priority/multifactor",
+            "PriorityDecayHalfLife={{ slurm_priority_decay_half_life }}",
+            "PriorityCalcPeriod={{ slurm_priority_calculation_period }}",
+            "PriorityMaxAge={{ slurm_priority_max_age }}",
+            "PriorityWeightFairshare={{ slurm_priority_weight_fairshare }}",
+            "PriorityWeightAge={{ slurm_priority_weight_age }}",
+            "PriorityWeightJobSize=0",
+            "PriorityWeightPartition=0",
+            "PriorityWeightQOS={{ slurm_priority_weight_qos }}",
+            "PreemptType=preempt/none",
+            "PreemptMode=OFF",
+        ):
+            self.assertIn(setting, template)
+
+        for policy in (
+            "slurm_accounting_storage_enforce: limits,qos",
+            'slurm_priority_decay_half_life: "14-0"',
+            "slurm_priority_calculation_period: 5",
+            'slurm_priority_max_age: "7-0"',
+            "slurm_priority_weight_fairshare: 10000",
+            "slurm_priority_weight_age: 3000",
+            "slurm_priority_weight_qos: 30000",
+        ):
+            self.assertIn(policy, variables)
+
+        self.assertNotIn("preempt/qos", template)
+
+    def test_gpu_partitions_bill_one_gpu_and_negligible_cpu(self) -> None:
+        template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
+        a100 = read_ansible_file(
+            "inventory/host_vars/epic-cluster-compute-a100-01.yml"
+        )
+        rtx4070 = read_ansible_file(
+            "inventory/host_vars/epic-cluster-compute-rtx4070-01.yml"
+        )
+
+        self.assertIn(
+            'TRESBillingWeights="{{ node.slurm_tres_billing_weights }}"',
+            template,
+        )
+        self.assertIn('slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"', a100)
+        self.assertIn(
+            'slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"',
+            rtx4070,
+        )
 
     def test_cluster_record_is_created_before_slurm_reconfiguration(self) -> None:
         main_tasks = read_ansible_file("roles/slurm/tasks/main.yml")
@@ -110,6 +157,16 @@ class SlurmRoleTests(unittest.TestCase):
         self.assertIn("slurm_cluster_name", accounting_tasks)
         self.assertNotIn("add\n      - account", accounting_tasks)
         self.assertNotIn("add\n      - user", accounting_tasks)
+
+    def test_site_bootstraps_accounting_before_enabling_enforcement(self) -> None:
+        site = read_ansible_file("playbooks/site.yml")
+
+        bootstrap = site.index("slurm_accounting_storage_enforce: none")
+        associations = site.index("import_playbook: slurm_associations.yml")
+        final_slurm = site.rindex("import_playbook: slurm.yml")
+
+        self.assertLess(bootstrap, associations)
+        self.assertLess(associations, final_slurm)
 
     def test_runtime_verification_pings_slurmdbd(self) -> None:
         verification_tasks = read_ansible_file("roles/slurm/tasks/verify.yml")

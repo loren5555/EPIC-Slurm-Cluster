@@ -1,7 +1,7 @@
 ---
-# Synchronize SlurmDBD Accounts and host-specific user Associations. This
-# playbook uses MUNGE through sacctmgr and does not need database credentials.
-- name: Synchronize Slurm accounts and partition associations
+# Synchronize SlurmDBD Accounts, Job QoS, and host-specific user Associations.
+# This playbook uses MUNGE through sacctmgr and needs no database credentials.
+- name: Synchronize Slurm accounting policy and partition associations
   hosts: controllers
   gather_facts: false
   any_errors_fatal: true
@@ -9,5 +9,6 @@
     - ../vars/users.yml
     - ../vars/slurm_accounts.yml
     - ../vars/slurm_partitions.yml
+    - ../vars/slurm_qos.yml
   roles:
     - slurm_associations

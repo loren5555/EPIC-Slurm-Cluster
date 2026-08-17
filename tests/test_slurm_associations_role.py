@@ -153,6 +153,8 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
                 "partition": "",
                 "fairshare": 1,
                 "group_tres": "",
+                "qos": "",
+                "default_qos": "",
             },
             plan["remove_associations"],
         )
@@ -312,12 +314,37 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
             ],
         )
 
+    def test_qos_difference_plans_a_user_association_update(self) -> None:
+        desired = build_desired_state(
+            USERS,
+            ACCOUNTS,
+            PARTITIONS,
+            default_qos="normal",
+            project_qos_users=["liuhongbo"],
+        )
+        current_rows = [
+            "epic|epic-rl|liuhongbo|epic-cluster-compute-a100-01|"
+            "1||normal|normal|"
+        ]
+
+        plan = plan_association_changes(desired, current_rows, "epic")
+        liuhongbo_update = next(
+            item
+            for item in plan["update_associations"]
+            if item["user"] == "liuhongbo"
+            and item["partition"] == "epic-cluster-compute-a100-01"
+        )
+
+        self.assertEqual(liuhongbo_update["qos"], "normal,project")
+        self.assertEqual(liuhongbo_update["default_qos"], "normal")
+
 
 class SlurmAssociationRoleTests(unittest.TestCase):
     def test_work_package_files_exist(self) -> None:
         expected_files = (
             "vars/slurm_accounts.yml",
             "vars/slurm_partitions.yml",
+            "vars/slurm_qos.yml",
             "playbooks/slurm_associations.yml",
             "roles/slurm_associations/tasks/main.yml",
             "roles/slurm_associations/tasks/preflight.yml",
@@ -339,7 +366,64 @@ class SlurmAssociationRoleTests(unittest.TestCase):
         self.assertIn("../vars/users.yml", playbook)
         self.assertIn("../vars/slurm_accounts.yml", playbook)
         self.assertIn("../vars/slurm_partitions.yml", playbook)
+        self.assertIn("../vars/slurm_qos.yml", playbook)
         self.assertNotIn("secrets.yml", playbook)
+
+    def test_qos_policy_only_changes_queue_priority(self) -> None:
+        manifest = read_ansible_file("vars/slurm_qos.yml")
+        role_files = "\n".join(
+            read_ansible_file(path)
+            for path in (
+                "roles/slurm_associations/tasks/plan.yml",
+                "roles/slurm_associations/tasks/converge.yml",
+                "roles/slurm_associations/tasks/audit.yml",
+            )
+        )
+
+        self.assertIn("name: normal", manifest)
+        self.assertIn("name: project", manifest)
+        self.assertIn("priority: 100", manifest)
+        self.assertIn("default_qos: normal", manifest)
+        self.assertIn("project_qos_users:\n  - liuhongbo", manifest)
+        self.assertIn("show\n      - qos", role_files)
+        self.assertIn("DefaultQOS=", role_files)
+        self.assertIn("QOS=", role_files)
+
+        for forbidden in (
+            r"^\s+GrpTRES:",
+            r"^\s+MaxTRES\w*:",
+            r"^\s+GrpJobs\w*:",
+            r"^\s+MaxJobs\w*:",
+            r"^\s+Preempt\w*:",
+        ):
+            self.assertIsNone(re.search(forbidden, manifest, flags=re.MULTILINE))
+
+        self.assertIn("slurm_qos_guard_fields:", manifest)
+        self.assertIn("Refuse undeclared Job QoS limits or behavior", role_files)
+
+    def test_user_association_qos_is_exactly_declarative(self) -> None:
+        desired = build_desired_state(
+            USERS,
+            ACCOUNTS,
+            PARTITIONS,
+            default_qos="normal",
+            project_qos_users=["liuhongbo"],
+        )
+
+        liuhongbo = next(
+            item
+            for item in desired["associations"]
+            if item["user"] == "liuhongbo"
+        )
+        wangjiaxiang = next(
+            item
+            for item in desired["associations"]
+            if item["user"] == "wangjiaxiang"
+        )
+
+        self.assertEqual(liuhongbo["qos"], "normal,project")
+        self.assertEqual(liuhongbo["default_qos"], "normal")
+        self.assertEqual(wangjiaxiang["qos"], "normal")
 
     def test_check_mode_never_writes_slurmdbd(self) -> None:
         converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
