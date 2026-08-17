@@ -4,5 +4,8 @@
 - name: Install the declared Slurm configuration
   ansible.builtin.import_tasks: configure.yml
 
+- name: Prepare the SlurmDBD cluster record
+  ansible.builtin.import_tasks: accounting.yml
+
 - name: Activate and verify changed configuration
   ansible.builtin.import_tasks: verify.yml

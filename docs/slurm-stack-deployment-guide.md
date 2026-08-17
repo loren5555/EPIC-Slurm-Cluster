@@ -540,34 +540,47 @@ Ansible 在公共 `slurm.conf` 中加入：
 # Store job and step accounting through SlurmDBD.
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=epic-cluster-controller-01
-AccountingStorageTRES=gres/gpu,gres/gpu:a100-sxm4,gres/gpu:rtx4070
+AccountingStorageTRES=gres/gpu
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=30
 ```
 
-此时明确不设置 `AccountingStorageEnforce`。
+此时明确不设置 `AccountingStorageEnforce`。CPU、内存、节点等基础 TRES 默认记录；这里只追加通用 `gres/gpu`，与当前所有节点使用 `Gres=gpu:N` 的无类型配置保持一致。GPU 型号仍可通过分区名称区分，不创建已经取消的 typed GRES。
 
-在切换配置前，先确保集群记录存在：
+Ansible 按以下顺序处理集群记录：
 
-```bash
-# Inspect the existing cluster record first.
-sacctmgr list cluster epic
+1. 先把包含 SlurmDBD 地址的新 `slurm.conf` 写到所有主机；
+2. 在重新加载 `slurmctld` 前，控制节点使用 `sacctmgr` 查询已有 Cluster；
+3. 仅当 `epic` 不存在时创建 Cluster 记录；
+4. Cluster 已存在时不执行写操作；
+5. 最后运行 `scontrol reconfigure`，让所有 Slurm daemon 重新读取配置。
 
-# Run this only when the preceding output does not contain epic.
-sacctmgr --immediate add cluster epic
-```
-
-实际 Ansible 任务必须做存在性检查，不能依靠命令失败实现幂等。
+本工作包只创建 Cluster 记录，不创建 Account、用户 Association 或 QoS。
 
 ### 操作
 
 ```bash
-# Preview the accounting client configuration.
+# Validate the playbook structure without changing any host.
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
-ansible-playbook playbooks/slurm.yml --check --diff --ask-vault-pass
+ansible-playbook playbooks/slurm.yml --syntax-check
 
-# Apply and reconfigure Slurm without restarting slurmctld.
-ansible-playbook playbooks/slurm.yml --ask-vault-pass
+# Preview the shared accounting client configuration.
+ansible-playbook playbooks/slurm.yml --check --diff
+
+# Apply the configuration and ask all Slurm daemons to reread it without a
+# process restart.
+ansible-playbook playbooks/slurm.yml
+
+# Confirm that the same declaration produces no further changes.
+ansible-playbook playbooks/slurm.yml
+
+# Verify the authenticated Slurm client-to-SlurmDBD path and cluster record.
+sacctmgr ping
+sacctmgr list cluster epic
+
+# Confirm that accounting is enabled without association enforcement.
+scontrol show config | grep -E \
+  'AccountingStorage(Type|Host|TRES|Enforce)|JobAcctGather(Type|Frequency)'
 ```
 
 随后在两个分区各运行一个带明确作业名的短作业，再查询记账结果：
@@ -577,11 +590,17 @@ ansible-playbook playbooks/slurm.yml --ask-vault-pass
 srun \
   --job-name=accounting-rtx4070-test \
   --partition=epic-cluster-compute-rtx4070-01 \
+  --chdir=/tmp \
+  --nodes=1 \
+  --ntasks=1 \
   hostname
 
 srun \
   --job-name=accounting-a100-test \
   --partition=epic-cluster-compute-a100-01 \
+  --chdir=/tmp \
+  --nodes=1 \
+  --ntasks=1 \
   --gres=gpu:1 \
   nvidia-smi -L
 
@@ -594,7 +613,11 @@ sacct \
 
 ### 预期结果
 
+- 第二次运行 playbook 时 `changed=0`；
 - `scontrol reconfigure` 成功；
+- `slurmctld` 和 `slurmd` 不因本次 `slurm.conf` 变化而重启；
+- `sacctmgr ping` 显示 SlurmDBD 为 `UP`，Cluster 列表包含 `epic`；
+- `scontrol show config` 显示通用 `gres/gpu` 记账，`AccountingStorageEnforce` 保持未设置或 `none`；
 - 两个测试作业均可提交并完成；
 - `sacct` 能看到作业、分区、状态、运行时间和 GPU TRES；
 - SlurmDBD 短暂重启后，slurmctld 恢复传输记录；
@@ -603,6 +626,8 @@ sacct \
 ### 停止条件
 
 - 日志出现 `slurmdbd is required`、认证失败或未知 TRES；
+- 配置中重新出现已经取消的 typed GPU TRES；
+- 未进入工包 4 就出现 `AccountingStorageEnforce`；
 - `sacct` 长时间查不到已完成测试作业；
 - 开启记账后用户意外收到 `Invalid account` 或 `Invalid user for account`；
 - SlurmDBD 首次成功连接尚未完成就继续配置权限强制。

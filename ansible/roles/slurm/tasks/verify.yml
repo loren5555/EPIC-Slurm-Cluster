@@ -3,6 +3,19 @@
   ansible.builtin.meta: flush_handlers
   when: not ansible_check_mode
 
+- name: Confirm that SlurmDBD answers authenticated client requests
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - ping
+  register: slurmdbd_ping
+  changed_when: false
+  failed_when:
+    - slurmdbd_ping.rc != 0 or 'is UP' not in slurmdbd_ping.stdout
+  when:
+    - not ansible_check_mode
+    - inventory_hostname in groups['controllers']
+
 - name: Confirm that the controller answers RPC requests
   ansible.builtin.command:
     argv:
