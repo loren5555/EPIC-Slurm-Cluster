@@ -251,8 +251,8 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
     def test_matching_account_and_cluster_association_need_no_change(self) -> None:
         desired = build_desired_state(USERS, ACCOUNTS, PARTITIONS)
         current_accounts = [
-            "epic-rl|EPIC-RL members|epic-rl|",
-            "nue|NUE members|nue|",
+            "epic-rl|epic-rl members|epic-rl|",
+            "nue|nue members|nue|",
         ]
         current_associations = [
             "epic| epic-rl|||2||",

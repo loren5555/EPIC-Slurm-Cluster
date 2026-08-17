@@ -209,7 +209,7 @@ def plan_account_changes(
 
     current_accounts = {}
     for row in current_account_rows:
-        columns = row.split("|")
+        columns = [column.strip() for column in row.split("|")]
         if len(columns) >= 3:
             current_accounts[columns[0]] = {
                 "description": columns[1],
@@ -239,10 +239,15 @@ def plan_account_changes(
             continue
 
         current_account = current_accounts[account_name]
-        if (
-            current_account["description"] != account["description"]
-            or current_account["organization"] != account["organization"]
-        ):
+        current_metadata = (
+            current_account["description"].casefold(),
+            current_account["organization"].casefold(),
+        )
+        desired_metadata = (
+            account["description"].casefold(),
+            account["organization"].casefold(),
+        )
+        if current_metadata != desired_metadata:
             update_accounts.append(account)
 
         desired_association = {
