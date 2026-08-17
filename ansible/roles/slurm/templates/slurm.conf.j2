@@ -30,14 +30,29 @@ GresTypes=gpu
 MpiDefault=none
 ReturnToService=2
 
+# Fair Tree orders queued jobs by decaying historical usage. Job QoS adds a
+# bounded priority adjustment and can never preempt a running job.
+PriorityType=priority/multifactor
+PriorityDecayHalfLife={{ slurm_priority_decay_half_life }}
+PriorityCalcPeriod={{ slurm_priority_calculation_period }}
+PriorityMaxAge={{ slurm_priority_max_age }}
+PriorityWeightFairshare={{ slurm_priority_weight_fairshare }}
+PriorityWeightAge={{ slurm_priority_weight_age }}
+PriorityWeightJobSize=0
+PriorityWeightPartition=0
+PriorityWeightQOS={{ slurm_priority_weight_qos }}
+PreemptType=preempt/none
+PreemptMode=OFF
+
 # Process tracking. Per-host enforcement is defined in cgroup.conf.
 ProctrackType=proctrack/cgroup
 TaskPlugin=task/affinity,task/cgroup
 
-# Store job and step records without enforcing associations or limits.
+# Store job records and enforce the declared Associations, limits, and QoS.
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost={{ slurmdbd_host }}
 AccountingStorageTRES=gres/gpu
+AccountingStorageEnforce={{ slurm_accounting_storage_enforce }}
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=30
 
@@ -57,9 +72,11 @@ NodeName={{ node_name }} \
 
 # One explicit partition per physical host. No partition is implicit or default.
 {% for node_name in groups['compute_nodes'] | sort %}
+{% set node = hostvars[node_name] %}
 PartitionName={{ node_name }} \
     Nodes={{ node_name }} \
     Default=NO \
     MaxTime={{ slurm_partition_max_time }} \
+    TRESBillingWeights="{{ node.slurm_tres_billing_weights }}" \
     State=UP
 {% endfor %}

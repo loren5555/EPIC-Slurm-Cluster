@@ -25,6 +25,64 @@
   changed_when: false
   check_mode: false
 
+- name: Read each declared Job QoS
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - qos
+      - "Name={{ item.name }}"
+      - >-
+        format={{ (['Name', 'Priority'] + slurm_qos_guard_fields) | join(',') }}
+  loop: "{{ slurm_job_qos }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: slurm_current_qos
+  changed_when: false
+  check_mode: false
+
+- name: Compare declared Job QoS priorities with SlurmDBD
+  ansible.builtin.set_fact:
+    slurm_qos_plan: >-
+      {{ (slurm_qos_plan | default([]))
+         + [{
+             'name': item.item.name,
+             'priority': item.item.priority,
+             'action': qos_action
+           }] }}
+  vars:
+    qos_action: >-
+      {{ 'create'
+         if item.stdout | trim == ''
+         else (
+           'update'
+           if (item.stdout.split('|')[1] | int) != (item.item.priority | int)
+           else 'keep'
+         ) }}
+  loop: "{{ slurm_current_qos.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Refuse undeclared Job QoS limits or behavior
+  ansible.builtin.assert:
+    that:
+      - >-
+        item.stdout.split('|')[2:]
+        | reject('equalto', '')
+        | list
+        | length == 0
+    fail_msg: >-
+      Job QoS {{ item.item.name }} contains an undeclared limit, flag, or
+      preemption relationship. Inspect it with sacctmgr before continuing:
+      {{ item.stdout | trim }}
+    quiet: true
+  loop: "{{ slurm_current_qos.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.stdout | trim != ''
+
 - name: Read current cluster Associations once
   ansible.builtin.command:
     argv:
@@ -35,7 +93,7 @@
       - association
       - WOPLimits
       - "Cluster={{ slurm_cluster_name }}"
-      - format=Cluster,Account,User,Partition,Fairshare,GrpTRES
+      - format=Cluster,Account,User,Partition,Fairshare,GrpTRES,QOS,DefaultQOS
   register: slurm_current_associations
   changed_when: false
   check_mode: false
@@ -44,7 +102,12 @@
   ansible.builtin.set_fact:
     slurm_desired: >-
       {{ cluster_users
-         | slurm_desired_state(slurm_accounts, slurm_partitions) }}
+         | slurm_desired_state(
+             slurm_accounts,
+             slurm_partitions,
+             slurm_default_qos,
+             project_qos_users
+           ) }}
 
 - name: Compare desired state with current SlurmDBD records
   ansible.builtin.set_fact:
@@ -95,6 +158,7 @@
   ansible.builtin.debug:
     msg:
       account_entities: "{{ slurm_account_plan }}"
+      job_qos: "{{ slurm_qos_plan }}"
       default_accounts: "{{ slurm_default_account_plan }}"
       associations_to_add: "{{ slurm_association_plan.add_associations }}"
       associations_to_update: "{{ slurm_association_plan.update_associations }}"

@@ -10,3 +10,6 @@ slurm_real_memory: 126000
 # The GPU model and device files are discovered locally by AutoDetect=nvidia.
 # Inventory only declares the resource count that the node must register.
 slurm_gpu_count: 1
+
+# Keep accounting comparable with the other GPU partitions.
+slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"

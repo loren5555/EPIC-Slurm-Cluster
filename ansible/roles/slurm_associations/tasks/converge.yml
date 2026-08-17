@@ -2,6 +2,36 @@
 - name: Apply Account and Association changes outside check mode
   when: not ansible_check_mode
   block:
+    - name: Create missing Job QoS records
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - add
+          - qos
+          - "Name={{ item.name }}"
+          - "Priority={{ item.priority }}"
+      loop: "{{ slurm_qos_plan }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: item.action == 'create'
+
+    - name: Converge Job QoS queue priorities
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - modify
+          - qos
+          - where
+          - "Name={{ item.name }}"
+          - set
+          - "Priority={{ item.priority }}"
+      loop: "{{ slurm_qos_plan }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: item.action == 'update'
+
     - name: Create missing Slurm Accounts
       ansible.builtin.command:
         argv: >-
@@ -73,6 +103,8 @@
           - "Partition={{ item.partition }}"
           - "DefaultAccount={{ item.account }}"
           - "Fairshare={{ item.fairshare }}"
+          - "QOS={{ item.qos }}"
+          - "DefaultQOS={{ item.default_qos }}"
       loop: >-
         {{ slurm_association_plan.add_associations
            | rejectattr('user', 'equalto', '')
@@ -90,7 +122,9 @@
               'Account=' ~ item.account,
               'Partition=' ~ item.partition,
               'set',
-              'Fairshare=' ~ item.fairshare|string]
+              'Fairshare=' ~ item.fairshare|string,
+              'QOS=' ~ item.qos,
+              'DefaultQOS=' ~ item.default_qos]
              + (['GrpTRES=' ~ item.group_tres_update]
                 if item.group_tres_update else []) }}
       loop: >-

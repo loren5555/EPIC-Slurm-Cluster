@@ -12,6 +12,19 @@
     fail_msg: Slurm Account and user names must be unique.
     quiet: true
 
+- name: Require a consistent Job QoS declaration
+  ansible.builtin.assert:
+    that:
+      - >-
+        slurm_job_qos | map(attribute='name') | unique | length
+        == slurm_job_qos | map(attribute='name') | length
+      - slurm_default_qos in (slurm_job_qos | map(attribute='name') | list)
+      - project_qos_users | difference(slurm_declared_user_names) | length == 0
+    fail_msg: >-
+      Job QoS names must be unique, the default QoS must be declared, and
+      project_qos_users may contain only cluster users.
+    quiet: true
+
 - name: Require unique partition declarations
   ansible.builtin.assert:
     that:

@@ -11,3 +11,6 @@ slurm_real_memory: 1024000
 # The GPU model and device files are discovered locally by AutoDetect=nvidia.
 # Inventory only declares the resource count that the node must register.
 slurm_gpu_count: 8
+
+# One allocated GPU is one billing unit. CPU usage only breaks close ties.
+slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"

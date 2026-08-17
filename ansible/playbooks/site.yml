@@ -2,9 +2,9 @@
 # Full convergence entry point. Identities must exist before SSH authorization.
 - import_playbook: users.yml  # Identity related settings.
 - import_playbook: ssh_access.yml  # Cluster SSH keys and per-host access.
-- import_playbook: slurm.yml  # Scheduler configuration and host partitions.
 - import_playbook: slurmdbd.yml  # Local accounting database and daemon.
-- import_playbook: slurm_associations.yml  # Accounts and host permissions.
+- import_playbook: slurm_associations.yml  # Accounts, QoS, and host permissions.
+- import_playbook: slurm.yml  # Enable enforcement only after database policy.
 
 # Future subsystems remain separate so their changes cannot accidentally alter
 # the already stable identity and SSH roles.
