@@ -1,0 +1,76 @@
+---
+- name: Collect declared Account and user names
+  ansible.builtin.set_fact:
+    slurm_declared_account_names: "{{ slurm_accounts | map(attribute='name') | list }}"
+    slurm_declared_user_names: "{{ cluster_users | map(attribute='name') | list }}"
+
+- name: Require unique Account and user declarations
+  ansible.builtin.assert:
+    that:
+      - slurm_declared_account_names | unique | length == slurm_declared_account_names | length
+      - slurm_declared_user_names | unique | length == slurm_declared_user_names | length
+    fail_msg: Slurm Account and user names must be unique.
+    quiet: true
+
+- name: Require unique partition declarations
+  ansible.builtin.assert:
+    that:
+      - >-
+        slurm_partitions | map(attribute='name') | unique | length
+        == slurm_partitions | map(attribute='name') | length
+    fail_msg: Slurm partition declarations must have unique names.
+    quiet: true
+
+- name: Require one declared Slurm Account for every user
+  ansible.builtin.assert:
+    that:
+      - item.slurm_account is defined
+      - item.slurm_account in slurm_declared_account_names
+    fail_msg: >-
+      User {{ item.name }} must name exactly one Account from
+      vars/slurm_accounts.yml in slurm_account.
+    quiet: true
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Validate each partition authorization declaration
+  ansible.builtin.assert:
+    that:
+      - item.host in groups['compute_nodes']
+      - item.allowed_accounts | difference(slurm_declared_account_names) | length == 0
+      - item.allowed_users | difference(slurm_declared_user_names) | length == 0
+      - item.denied_users | difference(slurm_declared_user_names) | length == 0
+      - item.account_limits.keys() | difference(slurm_declared_account_names) | length == 0
+      - item.account_limits.keys() | difference(item.allowed_accounts) | length == 0
+    fail_msg: >-
+      Partition {{ item.name }} references an unknown compute host, Account,
+      user, or Account limit.
+    quiet: true
+  loop: "{{ slurm_partitions }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Confirm that the accounting cluster already exists
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - show
+      - cluster
+      - "Name={{ slurm_cluster_name }}"
+      - format=Cluster
+  register: slurm_cluster_record
+  changed_when: false
+  check_mode: false
+
+- name: Refuse to create Associations without the accounting cluster
+  ansible.builtin.assert:
+    that:
+      - >-
+        slurm_cluster_name in
+        (slurm_cluster_record.stdout_lines | map('trim') | list)
+    fail_msg: >-
+      SlurmDBD does not contain cluster {{ slurm_cluster_name }}. Complete
+      work package 3 before synchronizing Accounts and Associations.
+    quiet: true

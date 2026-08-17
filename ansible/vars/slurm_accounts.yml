@@ -1,0 +1,27 @@
+---
+# Slurm Accounts describe organizations for accounting and fair-share. They
+# are intentionally independent from Linux access groups.
+slurm_accounts:
+  - name: epic-rl
+    description: EPIC-RL members
+    organization: EPIC-RL
+
+  - name: cgcl
+    description: CGCL members
+    organization: CGCL
+
+  - name: mllms
+    description: MLLMs members
+    organization: MLLMs
+
+  - name: cv3d
+    description: CV3D members
+    organization: CV3D
+
+  - name: nue
+    description: NUE members
+    organization: NUE
+
+  - name: individual
+    description: Users without an organization account
+    organization: individual

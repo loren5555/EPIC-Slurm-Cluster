@@ -1,0 +1,29 @@
+---
+# Slurm submission permissions are declared independently from SSH access.
+# Account limits apply to all running jobs below that partition association.
+slurm_partitions:
+  - name: epic-cluster-compute-a100-01
+    host: epic-cluster-compute-a100-01
+    management_class: controlled
+    allowed_accounts:
+      - epic-rl
+      - cgcl
+      - mllms
+      - cv3d
+      - nue
+      - individual
+    allowed_users: []
+    denied_users: []
+    account_limits:
+      nue:
+        # All NUE jobs may use at most two A100 GPUs at the same time.
+        group_tres: gres/gpu=2
+
+  - name: epic-cluster-compute-rtx4070-01
+    host: epic-cluster-compute-rtx4070-01
+    management_class: free
+    allowed_accounts: []
+    allowed_users:
+      - liuhongbo
+    denied_users: []
+    account_limits: {}

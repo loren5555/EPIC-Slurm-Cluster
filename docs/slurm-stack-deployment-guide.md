@@ -91,7 +91,7 @@ Linux 用户自己的同名主组必须保留。它是标准 Linux 文件权限�
 
 Ansible 为最终集合创建带分区名的用户 Association。不得为了方便给普通用户创建不带分区名的全局 Association，否则它可能绕过按主机划定的权限。
 
-### 2.5 普通 Fair-share
+### 2.5 普通 Fair-share 与 NUE 并发限制
 
 本集群使用 Slurm 默认的 Fair Tree 算法，不使用 `FairShare=parent`：
 
@@ -100,7 +100,8 @@ Ansible 为最终集合创建带分区名的用户 Association。不得为了方
 - 用户自己的历史用量主要影响本人；
 - Account 的总用量仍会在一定程度上影响组内所有成员；
 - 大组因为人数多而获得相应的 Account shares，避免仅因成员多而降低每个人的基础份额；
-- 不设置硬额度、用量上限、抢占或强制 QoS。
+- 不设置累计用量额度、抢占或强制 QoS；唯一的初始并发限制是
+  `nue` Account 在 A100 主机上合计最多同时使用 2 张 GPU。
 
 历史使用量采用 7 天半衰期。作业等待时间也参与优先级，防止长期等待的作业一直排不到。
 
@@ -674,7 +675,7 @@ slurm_accounts:
     description: Users without an organization account
 ```
 
-`slurm_partitions.yml` 显式声明主机授权。以下仅展示结构，实施前必须填入实际许可关系：
+`slurm_partitions.yml` 显式声明主机授权和少量 Account 并发限制：
 
 ```yaml
 ---
@@ -682,19 +683,35 @@ slurm_partitions:
   - name: epic-cluster-compute-a100-01
     host: epic-cluster-compute-a100-01
     management_class: controlled
-    allowed_accounts: []
+    allowed_accounts:
+      - epic-rl
+      - cgcl
+      - mllms
+      - cv3d
+      - nue
+      - individual
     allowed_users: []
     denied_users: []
+    account_limits:
+      nue:
+        group_tres: gres/gpu=2
 
   - name: epic-cluster-compute-rtx4070-01
     host: epic-cluster-compute-rtx4070-01
     management_class: free
     allowed_accounts: []
-    allowed_users: []
+    allowed_users:
+      - liuhongbo
     denied_users: []
+    account_limits: {}
 ```
 
 这里不把 `ssh_access` 自动转换成 Slurm 权限。SSH、Slurm 和 OOD 是三个不同入口，授权来源必须保持明确。
+
+`nue` 的 `GrpTRES=gres/gpu=2` 设置在 A100 分区的 Account Association
+上，表示该组全部运行作业合计最多占用 2 张 A100。达到上限后，新作业继续
+排队，不会被拒绝或终止。该限制在本工作包只写入 SlurmDBD；工作包 5 开启
+Association limits 后才实际参与调度。
 
 ### Ansible 行为
 
@@ -709,6 +726,10 @@ Association 角色分为预检、计划、写入和审计四段：
 7. 如果要移除的 Association 仍有运行或排队作业，任务必须失败，不自动删除。
 
 删除 Association 会立即取消属于该 Association 的运行和排队作业，因此不得把删除操作隐藏在普通的同步过程里。
+角色会把两个已声明分区内的用户权限收敛为准确矩阵，包括清理已经从
+`users.yml` 移除的旧用户 Association。已经产生历史记录的 Account 实体本身
+不自动删除；无用户的旧 Account 保留仅用于 `sacct`/`sreport` 历史查询，不再
+获得已声明分区的使用权限。
 
 ### 操作
 
@@ -717,16 +738,17 @@ Association 角色分为预检、计划、写入和审计四段：
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
 ansible-playbook playbooks/slurm_associations.yml \
   --check \
-  --diff \
-  --ask-vault-pass
+  --diff
 
 # Apply only after reviewing the complete user-by-partition matrix.
-ansible-playbook playbooks/slurm_associations.yml \
-  --ask-vault-pass
+ansible-playbook playbooks/slurm_associations.yml
+
+# Confirm that a second run is idempotent.
+ansible-playbook playbooks/slurm_associations.yml
 
 # Verify the resulting account tree and partition associations.
 sacctmgr show account withassoc \
-  format=Account,ParentName,Cluster,Partition,Fairshare
+  format=Account,ParentName,Cluster,Partition,Fairshare,GrpTRES
 
 sacctmgr show user withassoc \
   format=User,DefaultAccount,Account,Cluster,Partition,Fairshare
@@ -740,6 +762,9 @@ sshare --all --long
 - 每个普通用户 Association 都带有具体分区名；
 - Account shares 等于该 Account 的有效用户数；
 - 用户 shares 均为 `1`；
+- RTX 4070 分区只有 `liuhongbo` 的用户 Association；
+- A100 分区包含全部声明用户，且 `nue` Account 显示
+  `GrpTRES=gres/gpu=2`；
 - 审计表与管理员认可的主机权限一致；
 - 仍未启用 `AccountingStorageEnforce`。
 
@@ -763,7 +788,9 @@ sshare --all --long
 
 ```ini
 # Require a valid account and partition association.
-AccountingStorageEnforce=associations
+# Enforce valid Associations and their declared concurrent-resource limits.
+# The limits option automatically includes association enforcement.
+AccountingStorageEnforce=limits
 
 # Apply ordinary Fair Tree scheduling without hard quotas.
 PriorityType=priority/multifactor
@@ -777,7 +804,9 @@ PriorityWeightPartition=0
 PriorityWeightQOS=0
 ```
 
-不加入 `limits`、`qos` 或 `safe`，也不创建任何硬用量上限。
+不加入 `qos` 或 `safe`，也不创建累计 GPU-hour、CPU-hour 或运行时长额度。
+`limits` 用于执行 Association 以及 `nue` 的 A100 并发 2 卡上限；它不会限制
+其他 Account，也不会在用量达到某个历史累计值后停止作业。
 
 GPU 分区的初始计费以 GPU 时间为主，CPU 时间只占很小权重；CPU-only 主机按 CPU 时间计费。具体权重放在每台主机的 host vars 中，以便异构主机独立调整：
 
@@ -820,12 +849,14 @@ sshare --all --long
 - 同一用户在另一获授权分区仍可提交；
 - 两名均有权限用户的 `sshare` 原始用量和 Fair-share 值可以分别变化；
 - 同一 Account 的总用量会反映到其成员的层级上；
+- `nue` 的运行中作业合计申请 2 张 A100 后，新增 GPU 作业以
+  `AssocGrpGRES` 或对应 Association limit 原因等待；
 - 等待时间能提高待运行作业的 age factor。
 
 ### 预期结果
 
 - 权限按主机分区生效；
-- 没有硬额度或运行时长限制；
+- 除 `nue` 的 A100 并发 2 卡上限外，没有累计额度或运行时长限制；
 - free 主机的普通 SSH 行为不改变；
 - `sprio` 显示 Fair-share 权重为 10000、Age 权重为 3000；
 - `sacct`、`sshare`、`sprio` 能解释作业记录和排队顺序。
@@ -835,7 +866,7 @@ sshare --all --long
 - 已授权用户被拒绝；
 - 未授权用户可以提交；
 - 任一用户所有分区权限意外消失；
-- 配置中出现未经设计的 QOS、额度、抢占或并发限制；
+- 配置中出现未经设计的 QOS、累计额度、抢占或其他并发限制；
 - free 主机普通 SSH 使用受到 Slurm cgroup 影响。
 
 若必须紧急恢复提交，先从 `slurm.conf` 移除 `AccountingStorageEnforce` 并执行 `scontrol reconfigure`。不要清空数据库或删除 Association。
@@ -1080,7 +1111,7 @@ sprio
 - 授权和拒绝测试符合声明文件；
 - `sacct`、`sreport`、`sshare` 和 `sprio` 输出正常；
 - Fair-share 同时体现个人近期用量和组织层用量；
-- 没有硬额度、强制 QOS、抢占或无意的并发限制；
+- 没有累计用量额度、强制 QOS、抢占或未经声明的并发限制；
 - Prometheus 所有预期 targets 为 `UP`；
 - Grafana 四类基础仪表盘有数据；
 - SlurmDBD、Prometheus、Grafana 任一单独停止时，不会导致本地 Home、普通 SSH 或已经运行的本地进程失效。

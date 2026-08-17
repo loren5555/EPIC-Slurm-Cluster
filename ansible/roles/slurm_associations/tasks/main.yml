@@ -1,0 +1,12 @@
+---
+- name: Validate the declared Slurm identity and permission model
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Calculate the SlurmDBD changes and removal safety checks
+  ansible.builtin.import_tasks: plan.yml
+
+- name: Apply the reviewed SlurmDBD state
+  ansible.builtin.import_tasks: converge.yml
+
+- name: Audit the final Account and Association state
+  ansible.builtin.import_tasks: audit.yml

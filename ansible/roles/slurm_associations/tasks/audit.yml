@@ -1,0 +1,83 @@
+---
+- name: Read Associations after convergence
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - association
+      - WOPLimits
+      - "Cluster={{ slurm_cluster_name }}"
+      - format=Cluster,Account,User,Partition,Fairshare,GrpTRES
+  register: slurm_final_associations
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Read Account metadata after convergence
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - account
+      - format=Account,Description,Organization
+  register: slurm_final_accounts
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Read user defaults after convergence
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - user
+      - format=User,DefaultAccount
+  register: slurm_final_users
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Calculate the final Association audit
+  ansible.builtin.set_fact:
+    slurm_final_association_plan: >-
+      {{ slurm_desired
+         | slurm_association_plan(
+             slurm_final_associations.stdout_lines,
+             slurm_cluster_name
+           ) }}
+    slurm_final_account_plan: >-
+      {{ slurm_desired
+         | slurm_account_metadata_plan(slurm_final_accounts.stdout_lines) }}
+    slurm_final_default_account_plan: >-
+      {{ slurm_desired
+         | slurm_user_default_plan(slurm_final_users.stdout_lines) }}
+  when: not ansible_check_mode
+
+- name: Require exact Association convergence
+  ansible.builtin.assert:
+    that:
+      - slurm_final_association_plan.add_associations | length == 0
+      - slurm_final_association_plan.update_associations | length == 0
+      - slurm_final_association_plan.remove_associations | length == 0
+      - slurm_final_account_plan.add_accounts | length == 0
+      - slurm_final_account_plan.update_accounts | length == 0
+      - slurm_final_default_account_plan | length == 0
+    fail_msg: >-
+      SlurmDBD does not match the declared Association state:
+      {{ {
+           'accounts': slurm_final_account_plan,
+           'default_accounts': slurm_final_default_account_plan,
+           'associations': slurm_final_association_plan
+         } | to_nice_json }}
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Show the effective user-by-partition audit matrix
+  ansible.builtin.debug:
+    var: slurm_desired.authorization_matrix

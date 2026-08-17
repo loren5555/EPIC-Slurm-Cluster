@@ -1,0 +1,98 @@
+---
+- name: Read current Account metadata
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - account
+      - format=Account,Description,Organization
+  register: slurm_current_accounts
+  changed_when: false
+  check_mode: false
+
+- name: Read current user defaults
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - user
+      - format=User,DefaultAccount
+  register: slurm_current_users
+  changed_when: false
+  check_mode: false
+
+- name: Read current cluster Associations once
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --noheader
+      - --parsable2
+      - show
+      - association
+      - WOPLimits
+      - "Cluster={{ slurm_cluster_name }}"
+      - format=Cluster,Account,User,Partition,Fairshare,GrpTRES
+  register: slurm_current_associations
+  changed_when: false
+  check_mode: false
+
+- name: Calculate desired state and database changes
+  ansible.builtin.set_fact:
+    slurm_desired: >-
+      {{ cluster_users
+         | slurm_desired_state(slurm_accounts, slurm_partitions) }}
+
+- name: Compare desired state with current SlurmDBD records
+  ansible.builtin.set_fact:
+    slurm_account_plan: >-
+      {{ slurm_desired
+         | slurm_account_metadata_plan(slurm_current_accounts.stdout_lines) }}
+    slurm_default_account_plan: >-
+      {{ slurm_desired
+         | slurm_user_default_plan(slurm_current_users.stdout_lines) }}
+    slurm_association_plan: >-
+      {{ slurm_desired
+         | slurm_association_plan(
+             slurm_current_associations.stdout_lines,
+             slurm_cluster_name
+           ) }}
+
+- name: Read running and pending jobs before planning removals
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/squeue
+      - --noheader
+      - --states=PENDING,RUNNING
+      - --format=%u|%a|%P|%i|%T
+  register: slurm_active_jobs
+  changed_when: false
+  check_mode: false
+
+- name: Find jobs whose Association would be removed
+  ansible.builtin.set_fact:
+    slurm_removal_blockers: >-
+      {{ slurm_association_plan.remove_associations
+         | slurm_blocking_jobs(slurm_active_jobs.stdout_lines) }}
+
+- name: Refuse to remove an Association used by an active job
+  ansible.builtin.assert:
+    that:
+      - slurm_removal_blockers | length == 0
+    fail_msg: >-
+      Association removal is blocked by these running or pending jobs:
+      {{ slurm_removal_blockers | to_nice_json }}
+    quiet: true
+
+- name: Show the planned Account and Association changes
+  ansible.builtin.debug:
+    msg:
+      account_entities: "{{ slurm_account_plan }}"
+      default_accounts: "{{ slurm_default_account_plan }}"
+      associations_to_add: "{{ slurm_association_plan.add_associations }}"
+      associations_to_update: "{{ slurm_association_plan.update_associations }}"
+      associations_to_remove: "{{ slurm_association_plan.remove_associations }}"
+      authorization_matrix: "{{ slurm_desired.authorization_matrix }}"

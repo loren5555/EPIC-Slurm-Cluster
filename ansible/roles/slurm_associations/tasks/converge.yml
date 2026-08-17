@@ -1,0 +1,213 @@
+---
+- name: Apply Account and Association changes outside check mode
+  when: not ansible_check_mode
+  block:
+    - name: Create missing Slurm Accounts
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - add
+          - account
+          - "Name={{ item.name }}"
+          - "Cluster={{ slurm_cluster_name }}"
+          - "Description={{ item.description }}"
+          - "Organization={{ item.organization }}"
+          - "Fairshare={{ item.fairshare }}"
+      loop: "{{ slurm_account_plan.add_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Repair changed Slurm Account metadata
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - modify
+          - account
+          - where
+          - "Name={{ item.name }}"
+          - set
+          - "Description={{ item.description }}"
+          - "Organization={{ item.organization }}"
+      loop: "{{ slurm_account_plan.update_accounts }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Create missing cluster Account Associations
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - add
+          - account
+          - "Name={{ item.account }}"
+          - "Cluster={{ slurm_cluster_name }}"
+          - "Fairshare={{ item.fairshare }}"
+      loop: >-
+        {{ slurm_association_plan.add_associations
+           | selectattr('user', 'equalto', '')
+           | selectattr('partition', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.account }}@{{ slurm_cluster_name }}"
+
+    - name: Create missing partition Account Associations
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/bin/sacctmgr', '--immediate', 'add', 'account',
+              'Name=' ~ item.account,
+              'Cluster=' ~ slurm_cluster_name,
+              'Partition=' ~ item.partition,
+              'Fairshare=' ~ item.fairshare|string]
+             + (['GrpTRES=' ~ item.group_tres] if item.group_tres else []) }}
+      loop: >-
+        {{ slurm_association_plan.add_associations
+           | selectattr('user', 'equalto', '')
+           | rejectattr('partition', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.account }}@{{ item.partition }}"
+
+    - name: Create missing partition user Associations
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - add
+          - user
+          - "Name={{ item.user }}"
+          - "Cluster={{ slurm_cluster_name }}"
+          - "Account={{ item.account }}"
+          - "Partition={{ item.partition }}"
+          - "DefaultAccount={{ item.account }}"
+          - "Fairshare={{ item.fairshare }}"
+      loop: >-
+        {{ slurm_association_plan.add_associations
+           | rejectattr('user', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.user }}@{{ item.partition }}"
+
+    - name: Converge Account Association shares and GPU limits
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/bin/sacctmgr', '--immediate', 'modify', 'account',
+              'where',
+              'Name=' ~ item.account,
+              'Cluster=' ~ slurm_cluster_name,
+              item.partition | slurm_partition_argument,
+              'set',
+              'Fairshare=' ~ item.fairshare|string]
+             + (['GrpTRES=' ~ item.group_tres_update]
+                if item.group_tres_update else []) }}
+      loop: >-
+        {{ slurm_association_plan.update_associations
+           | selectattr('user', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.account }}@{{ item.partition | default('all') }}"
+
+    - name: Converge user Association shares
+      ansible.builtin.command:
+        argv: >-
+          {{ ['/usr/bin/sacctmgr', '--immediate', 'modify', 'user',
+              'where',
+              'Name=' ~ item.user,
+              'Cluster=' ~ slurm_cluster_name,
+              'Account=' ~ item.account,
+              'Partition=' ~ item.partition,
+              'set',
+              'Fairshare=' ~ item.fairshare|string]
+             + (['GrpTRES=' ~ item.group_tres_update]
+                if item.group_tres_update else []) }}
+      loop: >-
+        {{ slurm_association_plan.update_associations
+           | rejectattr('user', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.user }}@{{ item.partition }}"
+
+    - name: Set each user's declared default Account
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - modify
+          - user
+          - where
+          - "Name={{ item.name }}"
+          - set
+          - "DefaultAccount={{ item.default_account }}"
+      loop: "{{ slurm_default_account_plan }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Recheck active jobs immediately before Association removal
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/squeue
+          - --noheader
+          - --states=PENDING,RUNNING
+          - --format=%u|%a|%P|%i|%T
+      register: slurm_active_jobs_before_removal
+      changed_when: false
+      when: slurm_association_plan.remove_associations | length > 0
+
+    - name: Recalculate Association removal blockers
+      ansible.builtin.set_fact:
+        slurm_removal_blockers_before_delete: >-
+          {{ slurm_association_plan.remove_associations
+             | slurm_blocking_jobs(
+                 slurm_active_jobs_before_removal.stdout_lines
+               ) }}
+      when: slurm_association_plan.remove_associations | length > 0
+
+    - name: Stop if an Association gained an active job during convergence
+      ansible.builtin.assert:
+        that:
+          - slurm_removal_blockers_before_delete | length == 0
+        fail_msg: >-
+          Association removal is blocked by jobs that became active during
+          convergence: {{ slurm_removal_blockers_before_delete | to_nice_json }}
+        quiet: true
+      when: slurm_association_plan.remove_associations | length > 0
+
+    - name: Remove stale managed user Associations
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - delete
+          - user
+          - where
+          - "Name={{ item.user }}"
+          - "Cluster={{ slurm_cluster_name }}"
+          - "Account={{ item.account }}"
+          - >-
+            {{ item.partition | slurm_partition_argument }}
+      loop: >-
+        {{ slurm_association_plan.remove_associations
+           | rejectattr('user', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.user }}@{{ item.partition | default('all') }}"
+
+    - name: Remove stale partition Account Associations
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sacctmgr
+          - --immediate
+          - delete
+          - account
+          - where
+          - "Name={{ item.account }}"
+          - "Cluster={{ slurm_cluster_name }}"
+          - >-
+            {{ item.partition | slurm_partition_argument }}
+      loop: >-
+        {{ slurm_association_plan.remove_associations
+           | selectattr('user', 'equalto', '')
+           | list }}
+      loop_control:
+        label: "{{ item.account }}@{{ item.partition }}"
