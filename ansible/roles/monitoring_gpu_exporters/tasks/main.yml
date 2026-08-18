@@ -63,20 +63,27 @@
     - nvitop-exporter.service
   when: not ansible_check_mode
 
-- name: Confirm that both GPU exporters serve local metrics
+- name: Wait until both GPU exporters serve local metrics
   ansible.builtin.uri:
     url: "http://127.0.0.1:{{ item.port }}/metrics"
     return_content: true
+    status_code: 200
   loop:
     - name: dcgm
       port: "{{ monitoring_dcgm_exporter_port }}"
+
     - name: nvitop
       port: "{{ monitoring_nvitop_exporter_port }}"
   loop_control:
     label: "{{ item.name }}"
   register: monitoring_gpu_exporter_metrics
+
+  # Retry until the exporter is listening and has produced Prometheus metrics.
+  until:
+    - monitoring_gpu_exporter_metrics.status == 200
+    - "'# HELP' in monitoring_gpu_exporter_metrics.content"
+  retries: 20
+  delay: 3
+
   changed_when: false
-  failed_when:
-    - monitoring_gpu_exporter_metrics.status != 200
-      or '# HELP' not in monitoring_gpu_exporter_metrics.content
   when: not ansible_check_mode
