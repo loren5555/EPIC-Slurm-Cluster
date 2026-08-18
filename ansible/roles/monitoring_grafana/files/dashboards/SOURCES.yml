@@ -1,0 +1,29 @@
+---
+# Dashboard source inventory. Files are vendored so deployment never depends
+# on access to GitHub Raw or Grafana.com.
+retrieved: "2026-08-18"
+
+upstream:
+  - file: upstream/nvitop-exporter.json
+    source: https://github.com/XuehaiPan/nvitop/blob/main/nvitop-exporter/grafana/dashboard.json
+    revision: d6ad8da9066f283b09eec5460f582fb13e856d0f
+  - file: upstream/nvidia-dcgm-exporter.json
+    source: https://github.com/NVIDIA/dcgm-exporter/blob/main/grafana/dcgm-exporter-dashboard.json
+    revision: 181290c399d46a9b905e083d0204348be63cb436
+  - file: upstream/prometheus-stats.json
+    source: https://grafana.com/grafana/dashboards/2-prometheus-stats/
+    revision: 2
+  - file: upstream/grafana-internal-metrics.json
+    source: https://grafana.com/grafana/dashboards/24838-grafana-internal-metrics/
+    revision: 1
+
+community_references:
+  - file: community-references/slurm-native-openmetrics.json
+    source: https://grafana.com/grafana/dashboards/24979-slurm-native-openmetrics/
+    revision: 1
+  - file: community-references/node-exporter-full.json
+    source: https://grafana.com/grafana/dashboards/1860-node-exporter-full/
+    revision: 37
+  - file: community-references/grafana-internal-stats.json
+    source: https://grafana.com/grafana/dashboards/20138-grafana-internal-stats/
+    revision: 1

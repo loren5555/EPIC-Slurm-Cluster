@@ -1356,21 +1356,22 @@ grafana server --version 2>/dev/null || /usr/sbin/grafana-server -v
 
 #### 2. 由 Ansible 配置 Grafana
 
-先配置并启动 Grafana。上游和社区仪表盘在首次正式运行时从声明的来源下载；检查模式不访问外部下载地址，避免 Grafana.com 不支持 `HEAD` 请求而产生 405。正式运行时的下载为可选操作：控制节点无法访问 GitHub 或 Grafana.com 时只输出说明，不阻塞三个 EPIC 正式仪表盘和 Grafana 服务；网络恢复后重新运行 playbook 即可补齐。已经下载的文件不会在每次运行中自动追随远端变化。
+先配置并启动 Grafana。上游和社区仪表盘的 JSON 已固定在项目仓库中，Ansible 直接复制这些文件，部署过程不访问 GitHub Raw 或 Grafana.com。来源地址、上游 commit 或 Grafana.com revision 记录在 `roles/monitoring_grafana/files/dashboards/SOURCES.yml`。只有管理员主动更新 vendored JSON 时才需要外网。
 
 ```bash
 # Validate the Grafana playbook without changing the controller.
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
 ansible-playbook playbooks/grafana.yml --syntax-check
 
-# Preview local configuration, provisioning, and dashboard changes.
-ansible-playbook playbooks/grafana.yml --check --diff
+# Preview the deployment. Do not add --diff here because vendored community
+# dashboards are large and would flood the terminal with their complete JSON.
+ansible-playbook playbooks/grafana.yml --check
 
 # Apply the Grafana configuration and start the package-provided service.
 ansible-playbook playbooks/grafana.yml
 ```
 
-下载列表包括：
+仓库中包含：
 
 - nvitop exporter 上游 dashboard；
 - NVIDIA DCGM exporter 上游 dashboard；

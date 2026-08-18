@@ -43,26 +43,3 @@ monitoring_dcgm_exporter_container_name: dcgm-exporter
 monitoring_grafana_configuration_directory: /etc/grafana
 monitoring_grafana_dashboard_directory: /var/lib/grafana/dashboards
 monitoring_grafana_prometheus_datasource_uid: epic-prometheus
-monitoring_grafana_upstream_dashboards:
-  - name: nvitop-exporter
-    url: https://raw.githubusercontent.com/XuehaiPan/nvitop/main/nvitop-exporter/grafana/dashboard.json
-    filename: nvitop-exporter.json
-  - name: nvidia-dcgm-exporter
-    url: https://raw.githubusercontent.com/NVIDIA/dcgm-exporter/main/grafana/dcgm-exporter-dashboard.json
-    filename: nvidia-dcgm-exporter.json
-  - name: prometheus-stats
-    url: https://grafana.com/api/dashboards/2/revisions/2/download
-    filename: prometheus-stats.json
-  - name: grafana-internal-metrics
-    url: https://grafana.com/api/dashboards/24838/revisions/1/download
-    filename: grafana-internal-metrics.json
-monitoring_grafana_community_dashboards:
-  - name: slurm-native-openmetrics
-    url: https://grafana.com/api/dashboards/24979/revisions/1/download
-    filename: slurm-native-openmetrics.json
-  - name: node-exporter-full
-    url: https://grafana.com/api/dashboards/1860/revisions/37/download
-    filename: node-exporter-full.json
-  - name: grafana-internal-stats
-    url: https://grafana.com/api/dashboards/20138/revisions/1/download
-    filename: grafana-internal-stats.json

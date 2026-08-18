@@ -44,8 +44,8 @@ class GrafanaRoleTests(unittest.TestCase):
         self.assertIn("grafana-server.service", tasks)
         self.assertIn("prometheus-datasource.yml.j2", tasks)
         self.assertIn("dashboard-providers.yml.j2", tasks)
-        self.assertIn("monitoring_grafana_upstream_dashboards", tasks)
-        self.assertIn("monitoring_grafana_community_dashboards", tasks)
+        self.assertIn("dashboards/upstream/", tasks)
+        self.assertIn("dashboards/community-references/", tasks)
 
         for installer in (
             "ansible.builtin.apt",
@@ -54,14 +54,27 @@ class GrafanaRoleTests(unittest.TestCase):
         ):
             self.assertNotIn(installer, tasks)
 
-    def test_external_reference_downloads_do_not_block_core_dashboards(self) -> None:
+    def test_external_reference_dashboards_are_vendored_in_the_repository(self) -> None:
         tasks = read_ansible_file("roles/monitoring_grafana/tasks/main.yml")
 
-        self.assertIn("timeout: 15", tasks)
-        self.assertIn("failed_when: false", tasks)
-        self.assertIn("when: not ansible_check_mode", tasks)
-        self.assertIn("Report unavailable optional dashboards", tasks)
-        self.assertIn("item.path", tasks)
+        self.assertNotIn("ansible.builtin.get_url", tasks)
+        self.assertNotIn("raw.githubusercontent.com", tasks)
+        self.assertNotIn("grafana.com/api/dashboards", tasks)
+
+        expected_dashboards = (
+            "upstream/nvitop-exporter.json",
+            "upstream/nvidia-dcgm-exporter.json",
+            "upstream/prometheus-stats.json",
+            "upstream/grafana-internal-metrics.json",
+            "community-references/slurm-native-openmetrics.json",
+            "community-references/node-exporter-full.json",
+            "community-references/grafana-internal-stats.json",
+        )
+        dashboard_root = (
+            ANSIBLE_DIRECTORY / "roles/monitoring_grafana/files/dashboards"
+        )
+        missing = [name for name in expected_dashboards if not (dashboard_root / name).is_file()]
+        self.assertEqual(missing, [])
 
     def test_provisioning_separates_managed_and_experimental_dashboards(self) -> None:
         datasource = read_ansible_file(
