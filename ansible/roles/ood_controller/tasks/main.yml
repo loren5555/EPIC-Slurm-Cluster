@@ -5,8 +5,8 @@
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
-    owner: root
-    group: root
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
     mode: "{{ item.mode }}"
   loop:
     - path: "{{ ood_configuration_directory }}/clusters.d"
@@ -20,6 +20,7 @@
     - path: "{{ ood_configuration_directory }}/apps/myjobs"
       mode: "0755"
     - path: /etc/ood/auth
+      group: www-data
       mode: "0750"
     - path: "{{ ood_tls_directory }}"
       mode: "0700"
