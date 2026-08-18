@@ -158,21 +158,3 @@
   retries: 12
   delay: 5
   when: not ansible_check_mode
-
-- name: Wait until every declared Prometheus target is healthy
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/targets"
-    return_content: true
-  register: monitoring_prometheus_targets
-  changed_when: false
-  until:
-    - monitoring_prometheus_targets.json.status == 'success'
-    - monitoring_prometheus_targets.json.data.activeTargets | length > 0
-    - >-
-      monitoring_prometheus_targets.json.data.activeTargets
-      | rejectattr('health', 'equalto', 'up')
-      | list
-      | length == 0
-  retries: 12
-  delay: 5
-  when: not ansible_check_mode
