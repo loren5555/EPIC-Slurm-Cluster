@@ -58,6 +58,7 @@
     regexp: '^url:'
     line: "url: http://{{ ood_server_address }}:{{ monitoring_grafana_port }}"
   notify: Restart all user PUNs
+  when: not ansible_check_mode
 
 - name: Link published applications into the OOD system catalog
   ansible.builtin.file:
