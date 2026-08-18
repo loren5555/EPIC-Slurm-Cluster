@@ -945,82 +945,340 @@ grep -E 'AccountingStorageEnforce|Priority(Type|Weight|Decay|Calc|MaxAge)|Preemp
 
 ### 目的
 
-建立实时监控链路。Prometheus 运行在控制节点，采集操作系统、GPU 和 Slurm 调度器指标。
+建立实时监控链路。Prometheus 在控制节点的本地系统盘保存 90 天数据；监控服务不成为 Slurm、SSH、驱动或作业的依赖。
 
-### 指标来源
+软件安装由管理员手工完成，Ansible 只管理配置和 systemd 服务。这样不会因为各主机 Ubuntu、内核和 NVIDIA 软件栈不同而触发不可控的软件升级。
 
-| 来源 | 部署位置 | 内容 | 默认端口 |
-|---|---|---|---:|
-| node_exporter | 全部主机 | CPU、内存、磁盘、网络、systemd | 9100 |
-| NVIDIA DCGM Exporter | GPU 计算节点 | GPU 利用率、显存、温度、功耗、错误 | 9400 |
-| Slurm 25.11 OpenMetrics | slurmctld | 作业、节点、分区、调度周期 | 6817 |
-| accounting report collector | 控制节点 | 从 `sreport`/`sacct` 生成低频汇总 | node_exporter textfile |
+### 最终组件与频率
 
-不让 Grafana 直接查询 SlurmDBD 的内部表。Slurm 数据库结构属于 Slurm 实现细节，历史报表通过 `sacct`、`sreport` 或后续的低频汇总采集器读取。
+| 来源 | 主机 | 内容 | 端口 | 周期 |
+|---|---|---|---:|---:|
+| node_exporter | 全部主机 | CPU、内存、磁盘、网络、systemd | 9100 | 10 秒 |
+| NVIDIA DCGM Exporter | GPU 节点 | GPU 健康、利用率、显存、温度、功耗和错误 | 9400 | 10 秒 |
+| nvitop-exporter | GPU 节点 | GPU 进程、用户、PID、命令和进程用量 | 5050 | 10 秒 |
+| Slurm 25.11 OpenMetrics | 控制节点 | 作业、节点和分区 | 6817 | 2 分钟 |
+| Slurm 25.11 OpenMetrics | 控制节点 | 调度周期 | 6817 | 5 分钟 |
+| EPIC Slurm usage collector | 控制节点 | 排队、当前 GPU 分配、本月用户与 Account 卡时 | node_exporter textfile | 2 分钟 |
+| Prometheus | 控制节点 | 自身状态 | 9090 | 30 秒 |
 
-### Slurm 指标配置
+10 秒任务使用 5 秒超时，其余抓取最多等待 10 秒。DCGM 内部采样也设为 10 秒。Grafana 和 OOD 指标留给各自的后续工作包。
 
-Slurm 25.11 已内置 OpenMetrics 插件，因此不再部署第三方 Slurm exporter：
+### 阶段 1：删除全部旧监控安装
+
+目的：旧监控已经失效，不迁移配置、数据或 unit。三台主机都停止并删除手工安装的 node_exporter；两个 GPU 节点还删除旧 nvitop、Slurm exporter 和 DCGM 容器配置；控制节点同时删除旧 Prometheus 数据。
+
+三台主机都执行：
+
+```bash
+sudo systemctl disable --now node_exporter.service || true
+sudo rm --force \
+  /etc/systemd/system/node_exporter.service \
+  /usr/local/bin/node_exporter
+sudo rm --recursive --force /var/lib/node_exporter
+sudo systemctl daemon-reload
+```
+
+A100 和 4070 都执行：
+
+```bash
+sudo systemctl disable --now nvitop-exporter.service || true
+sudo systemctl disable --now slurm-job-exporter.service || true
+sudo systemctl disable --now nvidia-dcgm-exporter.service || true
+sudo docker rm --force dcgm-exporter 2>/dev/null || true
+
+sudo rm --force \
+  /etc/systemd/system/nvitop-exporter.service \
+  /etc/systemd/system/slurm-job-exporter.service \
+  /etc/systemd/system/.slurm-job-exporter.service.swp
+sudo rm --recursive --force \
+  /opt/nvitop-exporter \
+  /etc/dcgm-exporter \
+  /etc/systemd/system/nvidia-dcgm-exporter.service.d
+
+sudo systemctl daemon-reload
+```
+
+控制节点额外执行：
+
+```bash
+sudo systemctl disable --now prometheus.service || true
+sudo rm --force \
+  /etc/systemd/system/prometheus.service \
+  /usr/local/bin/prometheus \
+  /usr/local/bin/promtool
+sudo rm --recursive --force \
+  /etc/prometheus \
+  /var/lib/prometheus
+sudo systemctl daemon-reload
+```
+
+预期：旧监控 unit、程序、虚拟环境和历史 Prometheus 数据均不存在；`nvidia-fabricmanager`、NVIDIA 驱动、`slurmd` 和现有作业不受影响。
+
+### 阶段 2：在全部主机安装 node_exporter
+
+目的：提供主机级指标。以下命令分别在控制节点、A100 和 4070 执行；服务由后续 Ansible 创建。
+
+```bash
+cd /tmp
+
+NODE_EXPORTER_TAG=$(
+  curl --fail --silent --show-error \
+    https://api.github.com/repos/prometheus/node_exporter/releases/latest |
+  python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])'
+)
+NODE_EXPORTER_VERSION="${NODE_EXPORTER_TAG#v}"
+
+curl --fail --location --remote-name \
+  "https://github.com/prometheus/node_exporter/releases/download/${NODE_EXPORTER_TAG}/node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
+
+tar --extract --gzip \
+  --file="node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64.tar.gz"
+
+sudo install --owner=root --group=root --mode=0755 \
+  "node_exporter-${NODE_EXPORTER_VERSION}.linux-amd64/node_exporter" \
+  /usr/local/bin/node_exporter
+
+/usr/local/bin/node_exporter --version
+```
+
+预期：GitHub `releases/latest` 返回当前稳定版本，三台主机显示相同版本。此时服务尚未启动是正常的。
+
+### 阶段 3：在控制节点安装 Prometheus
+
+目的：安装本地时序数据库和配置检查器。
+
+```bash
+cd /tmp
+
+PROMETHEUS_TAG=$(
+  curl --fail --silent --show-error \
+    https://api.github.com/repos/prometheus/prometheus/releases/latest |
+  python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])'
+)
+PROMETHEUS_VERSION="${PROMETHEUS_TAG#v}"
+
+curl --fail --location --remote-name \
+  "https://github.com/prometheus/prometheus/releases/download/${PROMETHEUS_TAG}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+
+tar --extract --gzip \
+  --file="prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz"
+
+sudo install --owner=root --group=root --mode=0755 \
+  "prometheus-${PROMETHEUS_VERSION}.linux-amd64/prometheus" \
+  "prometheus-${PROMETHEUS_VERSION}.linux-amd64/promtool" \
+  /usr/local/bin/
+
+/usr/local/bin/prometheus --version
+/usr/local/bin/promtool --version
+```
+
+预期：两个程序显示 GitHub 当前稳定版本。Ansible 稍后创建 `/var/lib/prometheus` 并加入 `90d` 和 `100GB` 两个保留上限。
+
+### 阶段 4：在 A100 和 4070 安装 nvitop-exporter
+
+目的：补足 DCGM 不提供的用户与进程级 GPU 指标。独立虚拟环境不会污染系统 Python。
+
+```bash
+sudo apt-get update
+sudo apt-get install --yes python3-venv
+
+sudo python3 -m venv /opt/nvitop-exporter
+sudo /opt/nvitop-exporter/bin/python -m pip install --upgrade pip
+sudo /opt/nvitop-exporter/bin/python -m pip install --upgrade nvitop-exporter
+
+sudo /opt/nvitop-exporter/bin/python -m pip show nvitop-exporter
+```
+
+预期：显示 PyPI 当前稳定版本，程序位于 `/opt/nvitop-exporter/bin/nvitop-exporter`。Ansible 让它以 root 运行在 `system.slice`，跨越登录会话的 GPU 隐藏 cgroup；该 exporter 只暴露指标，没有结束进程的接口。
+
+### 阶段 5：在 A100 和 4070 准备 DCGM Exporter 容器
+
+目的：使用 rootful Docker 运行 DCGM Exporter。管理员手工准备 Docker、NVIDIA Container Toolkit、CDI 清单和镜像；Ansible 随后接管容器的 systemd 服务与采集配置，不安装 NVIDIA 软件包。
+
+两个 GPU 节点都启用系统 Docker，并让标准 NVIDIA runtime 使用它：
+
+```bash
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl enable --now docker.service docker.socket
+sudo systemctl restart docker.service
+```
+
+若节点使用 CDI，生成持久设备清单。A100 的登录会话看不到 GPU，因此通过 `systemd-run` 在 `system.slice` 中执行：
+
+```bash
+sudo install --directory --mode=0755 /etc/cdi
+
+sudo systemd-run \
+  --wait \
+  --pipe \
+  --collect \
+  /usr/bin/nvidia-ctk \
+  cdi generate \
+  --output=/etc/cdi/nvidia.yaml
+```
+
+4070 能访问 NVCR 时直接拉取当前镜像：
+
+```bash
+sudo docker pull nvcr.io/nvidia/k8s/dcgm-exporter:latest
+```
+
+A100 无法访问 NVCR 时，从已经拥有镜像的 4070 导出并传入，再由 rootful Docker 加载：
+
+```bash
+# RTX 4070
+sudo docker save nvcr.io/nvidia/k8s/dcgm-exporter:latest |
+gzip -1 > /tmp/dcgm-exporter.tar.gz
+
+# Copy the archive to the A100 through the controller, then run on the A100.
+gzip --decompress --stdout /tmp/dcgm-exporter.tar.gz |
+sudo docker load
+```
+
+预期：两个节点的 rootful Docker 中都已有 `nvcr.io/nvidia/k8s/dcgm-exporter:latest`。不需要手工长期运行容器；Ansible 创建 `nvidia-dcgm-exporter.service`，以 `--gpus all`、`SYS_ADMIN` 和本地配置挂载启动它。
+
+### 阶段 6：启用 Slurm 内置指标
+
+Ansible 在 `slurm.conf` 加入：
 
 ```ini
-# Expose Slurm metrics inside the laboratory network.
 MetricsType=metrics/openmetrics
 MetricsParameters=ignore_private_data
 ```
 
-Prometheus 每 60 秒采集以下有界端点：
-
-- `/metrics/jobs`
-- `/metrics/nodes`
-- `/metrics/partitions`
-- `/metrics/scheduler`
-
-初始阶段不采集 `/metrics/jobs-users-accts`。该端点会按用户和 Account 创建时间序列，长期维护时容易产生高基数；个人历史报表由 SlurmDBD 提供。
-
-### GPU 采集说明
-
-DCGM Exporter 作为 systemd 服务运行在 `system.slice`，因此 A100 节点即使对普通 SSH 会话隐藏 GPU，采集服务仍能看到设备。优先使用 NVIDIA 软件源提供的 `datacenter-gpu-manager-exporter` 包，并保证 exporter 与 DCGM 版本匹配。
-
-### 操作
-
 ```bash
-# Preview exporters, Prometheus targets, and Slurm metrics changes.
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
-ansible-playbook playbooks/monitoring.yml \
-  --check \
-  --diff \
-  --tags=exporters,prometheus
 
-# Deploy exporters first, then the central Prometheus service.
-ansible-playbook playbooks/monitoring.yml \
-  --tags=exporters,prometheus
+ansible-playbook playbooks/slurm.yml --check --diff
+ansible-playbook playbooks/slurm.yml
+
+curl --fail http://127.0.0.1:6817/metrics/jobs
+curl --fail http://127.0.0.1:6817/metrics/nodes
+curl --fail http://127.0.0.1:6817/metrics/partitions
+curl --fail http://127.0.0.1:6817/metrics/scheduler
 ```
 
-### 预期结果
+预期：四个端点均返回 OpenMetrics 文本。Prometheus 不采集 `/metrics/jobs-users-accts`，个人历史继续由 SlurmDBD 报表承担。
+
+### 阶段 7：用 Ansible 配置并启动监控栈
+
+目的：统一创建服务账号、标准目录、systemd units、容器化 DCGM 配置和基于 inventory 主机名的 Prometheus targets。控制节点还会安装一个轻量采集器，每两分钟各执行一次 `scontrol show jobs`、`scontrol show nodes` 和 `sacct`，将结果原子写入 node_exporter textfile 目录。
+
+这个采集器只记录有界的聚合标签：Slurm Account、用户名、分区、状态和排队原因，不把 JobID、PID 或命令写入时序标签。它提供以下部署所需指标：
+
+| 指标 | 含义 |
+|---|---|
+| `epic_slurm_jobs` | 按用户、Account、分区和状态统计当前作业数 |
+| `epic_slurm_pending_jobs` | 按用户、Account、分区和原因统计排队作业数 |
+| `epic_slurm_pending_oldest_age_seconds` | 每组排队作业中最长的等待时间 |
+| `epic_slurm_gpus_allocated` | Slurm 当前分配给用户、Account 和分区的 GPU 数 |
+| `epic_slurm_gpus_requested_pending` | 排队作业请求但尚未获得的 GPU 数 |
+| `epic_slurm_node_gpus_configured` | 每个节点在 Slurm 中配置的 GPU 数 |
+| `epic_slurm_node_gpus_allocated` | 每个节点当前由 Slurm 分配的 GPU 数 |
+| `epic_slurm_node_gpus_available` | 每个节点当前未被 Slurm 分配的 GPU 数 |
+| `epic_slurm_gpu_allocated_seconds` | 本自然月按用户、Account 和分区累计的 GPU 分配秒数 |
+| `epic_slurm_gpu_jobs` | 本自然月按状态统计的 GPU 作业数 |
+| `epic_slurm_usage_collector_last_success_unixtime` | 最近一次完整采集成功的时间 |
+
+其中“使用量”指 Slurm 分配时长，而不是 GPU 核心实际忙碌时长。它适合统计卡时、组占比和排队需求；DCGM 与 nvitop 则用于判断拿到 GPU 后是否真正计算。采集失败时旧文件保留，避免把短暂的 SlurmDBD 故障表现为全部指标突然归零。
 
 ```bash
-# Verify the local operating-system exporter on each host.
-curl --fail http://localhost:9100/metrics
+cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
 
-# Verify the GPU exporter from system.slice on each GPU host.
-curl --fail http://localhost:9400/metrics
+# Preview the configuration managed by work package 6.
+ansible-playbook playbooks/monitoring.yml --check --diff
 
-# Verify Slurm's bounded OpenMetrics endpoints on the controller.
-curl --fail http://localhost:6817/metrics/jobs
-curl --fail http://localhost:6817/metrics/nodes
-curl --fail http://localhost:6817/metrics/partitions
-curl --fail http://localhost:6817/metrics/scheduler
+# Configure node exporters, then GPU exporters, then Prometheus.
+ansible-playbook playbooks/monitoring.yml
 ```
 
-Prometheus 的 Targets 页面中所有预期目标为 `UP`，且主机、GPU、作业、分区和调度指标都能查询。
+预期 recap：所有主机均无 `failed` 和 `unreachable`。Prometheus 启动前通过 `promtool check config`，最后等待全部 targets 变为 `UP`。
+
+### 阶段 8：验收与幂等性
+
+各主机：
+
+```bash
+curl --fail http://127.0.0.1:9100/metrics |
+grep node_exporter_build_info
+```
+
+A100 与 4070：
+
+```bash
+curl --fail http://127.0.0.1:9400/metrics |
+grep --max-count=3 '^DCGM_'
+
+curl --fail http://127.0.0.1:5050/metrics |
+grep --max-count=3 '^# HELP'
+
+systemctl show nvitop-exporter.service \
+  --property=User,Slice,ExecStart
+```
+
+控制节点：
+
+```bash
+curl --fail http://127.0.0.1:9090/-/ready
+
+curl --fail --get \
+  --data-urlencode 'query=up' \
+  http://127.0.0.1:9090/api/v1/query |
+python3 -m json.tool
+
+systemctl show prometheus.service --property=User,ExecStart
+systemctl status epic-slurm-usage-collector.timer --no-pager
+sudo systemctl start epic-slurm-usage-collector.service
+grep '^epic_slurm_' /var/lib/node_exporter/textfile_collector/slurm_usage.prom
+sudo du --summarize --human-readable /var/lib/prometheus
+```
+
+`up` 查询应有 12 个当前 targets：Prometheus 1、node 3、DCGM 2、nvitop 2、Slurm 4，值均为 `1`。Prometheus 的启动参数应包含 `90d`、`100GB` 和 `/var/lib/prometheus`。
+
+以下 PromQL 可直接回答资源管理中的常见问题：
+
+```promql
+# 集群当前由 Slurm 分配了多少张 GPU。
+sum(epic_slurm_gpus_allocated)
+
+# 每个 Account 当前占用多少张 GPU。
+sum by (account) (epic_slurm_gpus_allocated)
+
+# 每个用户在各主机分区当前占用多少张 GPU。
+sum by (user, partition) (epic_slurm_gpus_allocated)
+
+# 每个 Account 本月累计 GPU 卡时。
+sum by (account) (epic_slurm_gpu_allocated_seconds) / 3600
+
+# 每个用户在各主机分区的本月累计 GPU 卡时。
+sum by (user, partition) (epic_slurm_gpu_allocated_seconds) / 3600
+
+# 各分区因不同原因排队的作业数与 GPU 需求。
+sum by (partition, reason) (epic_slurm_pending_jobs)
+sum by (partition, reason) (epic_slurm_gpus_requested_pending)
+
+# 采集器距离上次成功已经过去多少秒；明显超过 120 秒说明数据陈旧。
+time() - epic_slurm_usage_collector_last_success_unixtime
+```
+
+再次运行：
+
+```bash
+ansible-playbook playbooks/monitoring.yml
+```
+
+预期 `changed=0`，表示安装完成后的配置已被 Ansible 稳定接管。
 
 ### 停止条件
 
-- DCGM Exporter 启动影响 NVIDIA 驱动、Fabric Manager 或现有 GPU 作业；
-- A100 exporter 在 `user.slice` 中启动而看不到 GPU；
-- Prometheus 高频请求导致 slurmctld 调度周期明显变长；
-- 监控任务修改了 GPU 可见性或 Slurm 作业约束；
-- Prometheus 目标使用临时 IP，而不是 inventory 生成的当前地址。
+- APT 准备安装、升级或移除 NVIDIA 驱动、内核或 Fabric Manager；
+- DCGM Exporter 启动影响驱动、Fabric Manager 或现有 GPU 作业；
+- A100 exporter 看不到 8 张 GPU，或 4070 exporter 看不到 1 张 GPU；
+- Prometheus 请求导致 slurmctld 调度周期明显变长；
+- 监控任务修改 GPU 可见性或 Slurm 作业约束；
+- Prometheus target 使用临时 IP，而不是 inventory 主机名；
+- `/var/lib/prometheus` 位于 NFS，或缺少 90 天/100GB 上限；
+- 任一监控服务故障导致 Slurm、SSH、Fabric Manager 或已有作业停止。
 
 ## 12. 工作包 7：部署 Grafana 与基础仪表盘
 

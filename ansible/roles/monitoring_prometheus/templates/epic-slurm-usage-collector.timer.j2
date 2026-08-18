@@ -1,0 +1,12 @@
+[Unit]
+Description=Collect EPIC Slurm usage metrics periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={{ monitoring_slurm_usage_collection_interval }}
+AccuracySec=15s
+Persistent=true
+Unit=epic-slurm-usage-collector.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,32 @@
+---
+# Exporter ports use their upstream defaults. Prometheus targets are generated
+# from inventory hostnames so temporary management addresses remain private to
+# Ansible's connection settings.
+monitoring_prometheus_port: 9090
+monitoring_node_exporter_port: 9100
+monitoring_dcgm_exporter_port: 9400
+monitoring_nvitop_exporter_port: 5050
+
+# Hardware signals need enough resolution to show short faults. Slurm state is
+# much slower-moving, so it is intentionally cheaper to collect.
+monitoring_fast_scrape_interval: "10s"
+monitoring_fast_scrape_timeout: "5s"
+monitoring_slurm_state_scrape_interval: "2m"
+monitoring_slurm_scheduler_scrape_interval: "5m"
+monitoring_slow_scrape_timeout: "10s"
+monitoring_prometheus_scrape_interval: "30s"
+monitoring_dcgm_collection_interval_milliseconds: 10000
+
+# The controller keeps three months of data but never allows monitoring to use
+# more than 100 GB of its local system disk.
+monitoring_prometheus_retention_time: "90d"
+monitoring_prometheus_retention_size: "100GB"
+monitoring_prometheus_configuration_directory: /etc/prometheus
+monitoring_prometheus_data_directory: /var/lib/prometheus
+monitoring_node_exporter_textfile_directory: /var/lib/node_exporter/textfile_collector
+monitoring_slurm_usage_collector_path: /usr/local/libexec/epic-slurm-usage-collector
+monitoring_slurm_usage_output_file: "{{ monitoring_node_exporter_textfile_directory }}/slurm_usage.prom"
+monitoring_slurm_usage_collection_interval: "2min"
+monitoring_dcgm_configuration_file: /etc/dcgm-exporter/config.yaml
+monitoring_dcgm_exporter_image: nvcr.io/nvidia/k8s/dcgm-exporter:latest
+monitoring_dcgm_exporter_container_name: dcgm-exporter

@@ -1,0 +1,32 @@
+[Unit]
+Description=NVIDIA DCGM Prometheus Exporter container
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=simple
+User=root
+Slice=system.slice
+
+# Replace a manually started container with the Ansible-managed instance.
+ExecStartPre=-/usr/bin/docker rm --force {{ monitoring_dcgm_exporter_container_name }}
+
+ExecStart=/usr/bin/docker run \
+    --rm \
+    --pull never \
+    --name {{ monitoring_dcgm_exporter_container_name }} \
+    --gpus all \
+    --cap-add SYS_ADMIN \
+    --publish {{ monitoring_dcgm_exporter_port }}:{{ monitoring_dcgm_exporter_port }} \
+    --mount type=bind,source={{ monitoring_dcgm_configuration_file }},target=/etc/dcgm-exporter/config.yaml,readonly \
+    --env DCGM_EXPORTER_CONFIG_FILE=/etc/dcgm-exporter/config.yaml \
+    {{ monitoring_dcgm_exporter_image }}
+
+ExecStop=/usr/bin/docker stop --time 20 {{ monitoring_dcgm_exporter_container_name }}
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

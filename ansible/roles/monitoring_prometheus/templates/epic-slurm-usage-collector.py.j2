@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""Export bounded Slurm queue and GPU allocation metrics for node_exporter."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shlex
+import subprocess
+import tempfile
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
+
+SCONTROL = "/usr/bin/scontrol"
+SACCT = "/usr/bin/sacct"
+
+
+def run_command(arguments: list[str]) -> str:
+    """Run one Slurm query and return its standard output."""
+
+    result = subprocess.run(
+        arguments,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout
+
+
+def parse_key_values(line: str) -> dict[str, str]:
+    """Parse the whitespace-separated key=value format emitted by scontrol."""
+
+    fields: dict[str, str] = {}
+    for token in shlex.split(line):
+        if "=" not in token:
+            continue
+        key, value = token.split("=", maxsplit=1)
+        fields[key] = value
+    return fields
+
+
+def numeric_tres_value(value: str) -> int:
+    """Convert the integer part of a Slurm TRES value to a count."""
+
+    match = re.match(r"^(\d+)", value)
+    return int(match.group(1)) if match else 0
+
+
+def gpu_count_from_tres(tres: str) -> int:
+    """Read a generic GPU total, falling back to the sum of typed GPU TRES."""
+
+    generic_gpu_count: int | None = None
+    typed_gpu_count = 0
+
+    for item in tres.split(","):
+        key, separator, value = item.partition("=")
+        if not separator:
+            continue
+
+        if key == "gres/gpu":
+            generic_gpu_count = numeric_tres_value(value)
+        elif key.startswith("gres/gpu:"):
+            typed_gpu_count += numeric_tres_value(value)
+
+    return generic_gpu_count if generic_gpu_count is not None else typed_gpu_count
+
+
+def gpu_count_from_gres(gres: str) -> int:
+    """Read configured GPU counts from the Gres field of scontrol show node."""
+
+    gpu_count = 0
+    for item in gres.split(","):
+        item = item.split("(", maxsplit=1)[0]
+        parts = item.split(":")
+        if not parts or parts[0] != "gpu":
+            continue
+
+        for part in reversed(parts[1:]):
+            if part.isdigit():
+                gpu_count += int(part)
+                break
+
+    return gpu_count
+
+
+def normalized_label(value: str | None) -> str:
+    """Replace Slurm's empty sentinels with one stable label value."""
+
+    if not value or value in {"(null)", "N/A", "Unknown"}:
+        return "unknown"
+    return value
+
+
+def user_name(user_id: str | None) -> str:
+    """Convert Slurm's name(uid) form into the stable username."""
+
+    return normalized_label((user_id or "").split("(", maxsplit=1)[0])
+
+
+def normalized_state(state: str | None) -> str:
+    """Remove transient suffixes from a Slurm state label."""
+
+    return normalized_label(state).split(maxsplit=1)[0].split("+", maxsplit=1)[0]
+
+
+def pending_age_seconds(fields: dict[str, str], now: datetime) -> float:
+    """Return time since a pending job became eligible, or since submission."""
+
+    timestamp = fields.get("EligibleTime")
+    if not timestamp or timestamp in {"Unknown", "N/A", "None"}:
+        timestamp = fields.get("SubmitTime")
+    if not timestamp or timestamp in {"Unknown", "N/A", "None"}:
+        return 0
+
+    try:
+        submitted = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return 0
+
+    if submitted.tzinfo is None:
+        submitted = submitted.replace(tzinfo=now.tzinfo)
+    return max(0, now.timestamp() - submitted.timestamp())
+
+
+def label_key(**labels: str) -> tuple[tuple[str, str], ...]:
+    """Create a deterministic, hashable Prometheus label set."""
+
+    return tuple(sorted(labels.items()))
+
+
+def escape_label(value: str) -> str:
+    """Escape a Prometheus text-format label value."""
+
+    return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
+
+
+def render_family(
+    name: str,
+    help_text: str,
+    values: dict[tuple[tuple[str, str], ...], float],
+) -> list[str]:
+    """Render one gauge family in Prometheus text exposition format."""
+
+    lines = [f"# HELP {name} {help_text}", f"# TYPE {name} gauge"]
+    for labels, value in sorted(values.items()):
+        label_text = ",".join(
+            f'{key}="{escape_label(label_value)}"' for key, label_value in labels
+        )
+        suffix = f"{{{label_text}}}" if label_text else ""
+        lines.append(f"{name}{suffix} {value:g}")
+    return lines
+
+
+def collect_current_jobs(now: datetime) -> dict[str, dict]:
+    """Aggregate current jobs without exposing high-cardinality job IDs."""
+
+    metrics = {
+        "jobs": defaultdict(float),
+        "pending_jobs": defaultdict(float),
+        "pending_oldest": defaultdict(float),
+        "gpus_allocated": defaultdict(float),
+        "gpus_requested_pending": defaultdict(float),
+    }
+
+    output = run_command([SCONTROL, "show", "jobs", "--oneliner"])
+    for line in output.splitlines():
+        fields = parse_key_values(line)
+        if not fields:
+            continue
+
+        labels = {
+            "account": normalized_label(fields.get("Account")),
+            "partition": normalized_label(fields.get("Partition")),
+            "state": normalized_state(fields.get("JobState")),
+            "user": user_name(fields.get("UserId")),
+        }
+        metrics["jobs"][label_key(**labels)] += 1
+
+        if labels["state"] == "PENDING":
+            pending_labels = labels | {"reason": normalized_label(fields.get("Reason"))}
+            pending_labels.pop("state")
+            key = label_key(**pending_labels)
+            metrics["pending_jobs"][key] += 1
+            metrics["gpus_requested_pending"][key] += gpu_count_from_tres(
+                fields.get("ReqTRES", "")
+            )
+            metrics["pending_oldest"][key] = max(
+                metrics["pending_oldest"][key], pending_age_seconds(fields, now)
+            )
+            continue
+
+        allocated_gpus = gpu_count_from_tres(fields.get("AllocTRES", ""))
+        if allocated_gpus:
+            allocation_labels = labels.copy()
+            allocation_labels.pop("state")
+            metrics["gpus_allocated"][label_key(**allocation_labels)] += allocated_gpus
+
+    return metrics
+
+
+def collect_node_gpus() -> dict[str, dict]:
+    """Aggregate configured, allocated, and immediately available node GPUs."""
+
+    metrics = {
+        "configured": defaultdict(float),
+        "allocated": defaultdict(float),
+        "available": defaultdict(float),
+    }
+
+    output = run_command([SCONTROL, "show", "nodes", "--oneliner"])
+    for line in output.splitlines():
+        fields = parse_key_values(line)
+        node = fields.get("NodeName")
+        if not node:
+            continue
+
+        configured = gpu_count_from_gres(fields.get("Gres", ""))
+        allocated = gpu_count_from_tres(fields.get("AllocTRES", ""))
+        labels = label_key(node=node)
+        metrics["configured"][labels] = configured
+        metrics["allocated"][labels] = allocated
+        metrics["available"][labels] = max(0, configured - allocated)
+
+    return metrics
+
+
+def collect_monthly_gpu_usage(
+    now: datetime,
+    cluster: str,
+) -> dict[str, dict]:
+    """Aggregate this calendar month's allocated GPU seconds from SlurmDBD."""
+
+    period = now.strftime("%Y-%m")
+    start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    output = run_command(
+        [
+            SACCT,
+            "--clusters",
+            cluster,
+            "--allusers",
+            "--truncate",
+            "--starttime",
+            start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "--endtime",
+            "now",
+            "--allocations",
+            "--noheader",
+            "--parsable2",
+            "--format=JobIDRaw,User,Account,Partition,State,ElapsedRaw,AllocTRES",
+        ]
+    )
+
+    gpu_seconds = defaultdict(float)
+    gpu_jobs = defaultdict(float)
+    for line in output.splitlines():
+        columns = line.rstrip("|").split("|")
+        if len(columns) != 7:
+            continue
+
+        _, user, account, partition, state, elapsed_raw, allocated_tres = columns
+        allocated_gpus = gpu_count_from_tres(allocated_tres)
+        if not allocated_gpus:
+            continue
+
+        labels = label_key(
+            account=normalized_label(account),
+            partition=normalized_label(partition),
+            period=period,
+            user=normalized_label(user),
+        )
+        elapsed_seconds = numeric_tres_value(elapsed_raw)
+        gpu_seconds[labels] += allocated_gpus * elapsed_seconds
+
+        state_labels = dict(labels)
+        state_labels["state"] = normalized_state(state)
+        gpu_jobs[tuple(sorted(state_labels.items()))] += 1
+
+    return {"gpu_seconds": gpu_seconds, "gpu_jobs": gpu_jobs}
+
+
+def build_metrics(now: datetime, cluster: str) -> str:
+    """Collect all Slurm metrics and return one complete textfile payload."""
+
+    jobs = collect_current_jobs(now)
+    nodes = collect_node_gpus()
+    history = collect_monthly_gpu_usage(now, cluster)
+
+    families = (
+        ("epic_slurm_jobs", "Current Slurm jobs.", jobs["jobs"]),
+        ("epic_slurm_pending_jobs", "Current pending Slurm jobs.", jobs["pending_jobs"]),
+        (
+            "epic_slurm_pending_oldest_age_seconds",
+            "Age in seconds of the oldest pending Slurm job.",
+            jobs["pending_oldest"],
+        ),
+        (
+            "epic_slurm_gpus_allocated",
+            "GPUs currently allocated by Slurm.",
+            jobs["gpus_allocated"],
+        ),
+        (
+            "epic_slurm_gpus_requested_pending",
+            "GPUs requested by pending Slurm jobs.",
+            jobs["gpus_requested_pending"],
+        ),
+        (
+            "epic_slurm_node_gpus_configured",
+            "GPUs configured in Slurm on each node.",
+            nodes["configured"],
+        ),
+        (
+            "epic_slurm_node_gpus_allocated",
+            "GPUs allocated by Slurm on each node.",
+            nodes["allocated"],
+        ),
+        (
+            "epic_slurm_node_gpus_available",
+            "GPUs configured but not allocated by Slurm on each node.",
+            nodes["available"],
+        ),
+        (
+            "epic_slurm_gpu_allocated_seconds",
+            "GPU allocation seconds in the named calendar month.",
+            history["gpu_seconds"],
+        ),
+        (
+            "epic_slurm_gpu_jobs",
+            "GPU jobs recorded in the named calendar month.",
+            history["gpu_jobs"],
+        ),
+        (
+            "epic_slurm_usage_collector_last_success_unixtime",
+            "Unix time of the last successful Slurm usage collection.",
+            {label_key(): now.timestamp()},
+        ),
+    )
+
+    lines: list[str] = []
+    for name, help_text, values in families:
+        lines.extend(render_family(name, help_text, values))
+    return "\n".join(lines) + "\n"
+
+
+def atomic_write(output_path: Path, content: str) -> None:
+    """Replace the metrics file only after every Slurm query succeeds."""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=output_path.parent,
+        prefix=f".{output_path.name}.",
+        delete=False,
+    ) as temporary_file:
+        temporary_path = Path(temporary_file.name)
+        temporary_file.write(content)
+
+    os.chmod(temporary_path, 0o644)
+    os.replace(temporary_path, output_path)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cluster", required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    arguments = parser.parse_args()
+
+    now = datetime.now().astimezone()
+    atomic_write(arguments.output, build_metrics(now, arguments.cluster))
+
+
+if __name__ == "__main__":
+    main()

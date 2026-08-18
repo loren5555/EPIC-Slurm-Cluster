@@ -1,0 +1,10 @@
+[Unit]
+Description=EPIC Slurm usage metrics collector
+After=slurmctld.service slurmdbd.service node_exporter.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart={{ monitoring_slurm_usage_collector_path }} \
+    --cluster {{ slurm_cluster_name }} \
+    --output {{ monitoring_slurm_usage_output_file }}
