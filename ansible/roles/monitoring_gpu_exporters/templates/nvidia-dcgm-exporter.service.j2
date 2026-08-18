@@ -15,10 +15,14 @@ ExecStart=/usr/bin/docker run \
     --rm \
     --pull never \
     --name {{ monitoring_dcgm_exporter_container_name }} \
+    --hostname {{ inventory_hostname }} \
     --gpus all \
     --cap-add SYS_ADMIN \
     --publish {{ monitoring_dcgm_exporter_port }}:{{ monitoring_dcgm_exporter_port }} \
     --mount type=bind,source={{ monitoring_dcgm_configuration_file }},target=/etc/dcgm-exporter/config.yaml,readonly \
+{% if monitoring_dcgm_disable_startup_validation | default(false) %}
+    --env DISABLE_STARTUP_VALIDATE=true \
+{% endif %}
     --env DCGM_EXPORTER_CONFIG_FILE=/etc/dcgm-exporter/config.yaml \
     {{ monitoring_dcgm_exporter_image }}
 
