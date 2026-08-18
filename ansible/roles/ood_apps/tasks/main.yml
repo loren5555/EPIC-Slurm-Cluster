@@ -1,0 +1,78 @@
+---
+- name: Install the generated OOD host and resource menu
+  ansible.builtin.template:
+    src: partitions.yml.j2
+    dest: "{{ ood_configuration_directory }}/site.d/partitions.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
+- name: Create per-user rclone configuration directories
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}/.config/rclone"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0700"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Add only SSH-authorized compute hosts to each user's Remote Files
+  ansible.builtin.blockinfile:
+    path: "/home/{{ item.name }}/.config/rclone/rclone.conf"
+    marker: "# {mark} ANSIBLE MANAGED EPIC OOD REMOTES"
+    block: "{{ lookup('template', 'rclone-remotes.ini.j2') }}"
+    create: true
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0600"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    ood_rclone_user: "{{ item }}"
+
+- name: Create the managed OOD application deployment root
+  ansible.builtin.file:
+    path: "{{ ood_application_deploy_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Publish EPIC OOD applications from the repository
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../apps/{{ item }}/"
+    dest: "{{ ood_application_deploy_root }}/{{ item }}/"
+    owner: root
+    group: root
+    mode: preserve
+  loop: "{{ ood_system_applications }}"
+  notify: Restart all user PUNs
+
+- name: Point the Grafana catalog entry at the current controller address
+  ansible.builtin.lineinfile:
+    path: "{{ ood_application_deploy_root }}/LINK_grafana/manifest.yml"
+    regexp: '^url:'
+    line: "url: http://{{ ood_server_address }}:{{ monitoring_grafana_port }}"
+  notify: Restart all user PUNs
+
+- name: Link published applications into the OOD system catalog
+  ansible.builtin.file:
+    src: "{{ ood_application_deploy_root }}/{{ item }}"
+    dest: "/var/www/ood/apps/sys/{{ item }}"
+    state: link
+    force: true
+  loop: "{{ ood_system_applications }}"
+  notify: Restart all user PUNs
+
+- name: Publish EPIC Job Composer templates
+  ansible.builtin.copy:
+    src: job_templates/
+    dest: "{{ ood_configuration_directory }}/apps/myjobs/templates/"
+    owner: root
+    group: root
+    mode: preserve
+  notify: Restart all user PUNs

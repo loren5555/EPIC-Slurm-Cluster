@@ -1,0 +1,8 @@
+---
+- name: Restart all user PUNs
+  ansible.builtin.command:
+    argv:
+      - /opt/ood/nginx_stage/sbin/nginx_stage
+      - nginx_clean
+      - -f
+  changed_when: true

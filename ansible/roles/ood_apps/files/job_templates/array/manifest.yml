@@ -1,0 +1,6 @@
+---
+name: Slurm array job
+host: epic
+script: job.sh
+notes: Run the same command for several task indexes with bounded concurrency.
+

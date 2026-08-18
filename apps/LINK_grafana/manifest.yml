@@ -2,7 +2,7 @@
 name: Grafana
 category: Clusters
 description: Grafana Dashboards For Epic
-url: http://epic-control-node:3000
+url: http://10.17.207.105:3000
 new_window: true
 metadata:
   layout: "Tools"

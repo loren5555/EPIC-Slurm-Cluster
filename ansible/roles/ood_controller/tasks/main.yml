@@ -1,0 +1,186 @@
+---
+# Software is installed manually. These tasks own only persistent directories,
+# configuration, and services.
+- name: Create Open OnDemand configuration and runtime directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ ood_configuration_directory }}/clusters.d"
+      mode: "0755"
+    - path: "{{ ood_configuration_directory }}/site.d"
+      mode: "0755"
+    - path: "{{ ood_configuration_directory }}/ondemand.d"
+      mode: "0755"
+    - path: "{{ ood_configuration_directory }}/apps/dashboard"
+      mode: "0755"
+    - path: "{{ ood_configuration_directory }}/apps/myjobs"
+      mode: "0755"
+    - path: /etc/ood/auth
+      mode: "0750"
+    - path: "{{ ood_tls_directory }}"
+      mode: "0700"
+    - path: "{{ ood_shared_root }}/users"
+      mode: "0711"
+    - path: /etc/exports.d
+      mode: "0755"
+
+- name: Create each user's private OOD context root
+  ansible.builtin.file:
+    path: "{{ ood_shared_root }}/users/{{ item.name }}/ondemand/data/sys"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0700"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# Keep the two explicit loops readable; these directories have different OOD
+# consumers and are intentionally not inferred from application source trees.
+- name: Create dashboard session roots
+  ansible.builtin.file:
+    path: "{{ ood_shared_root }}/users/{{ item.name }}/ondemand/data/sys/dashboard"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0700"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create Job Composer roots
+  ansible.builtin.file:
+    path: "{{ ood_shared_root }}/users/{{ item.name }}/ondemand/data/sys/myjobs"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0700"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create the live OOD password file only when it does not exist
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ ood_authentication_file }}"
+    owner: root
+    group: www-data
+    mode: "0640"
+    force: false
+
+- name: Install the certificate request configuration
+  ansible.builtin.template:
+    src: openssl.cnf.j2
+    dest: "{{ ood_tls_directory }}/openssl.cnf"
+    owner: root
+    group: root
+    mode: "0600"
+  register: ood_tls_configuration
+
+- name: Inspect the current OOD certificate
+  ansible.builtin.stat:
+    path: "{{ ood_tls_directory }}/ood.crt"
+  register: ood_certificate
+
+- name: Generate the IP certificate when absent or reconfigured
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/openssl
+      - req
+      - -x509
+      - -nodes
+      - -newkey
+      - rsa:2048
+      - -days
+      - "3650"
+      - -config
+      - "{{ ood_tls_directory }}/openssl.cnf"
+      - -keyout
+      - "{{ ood_tls_directory }}/ood.key"
+      - -out
+      - "{{ ood_tls_directory }}/ood.crt"
+  when: ood_tls_configuration.changed or not ood_certificate.stat.exists
+  notify: Apply OOD portal changes
+
+- name: Install the OOD portal definition
+  ansible.builtin.template:
+    src: ood_portal.yml.j2
+    dest: "{{ ood_configuration_directory }}/ood_portal.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply OOD portal changes
+
+- name: Install the local Slurm cluster adapter
+  ansible.builtin.template:
+    src: epic.yml.j2
+    dest: "{{ ood_configuration_directory }}/clusters.d/epic.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
+- name: Install the dashboard behavior configuration
+  ansible.builtin.template:
+    src: ondemand.yml.j2
+    dest: "{{ ood_configuration_directory }}/ondemand.d/epic.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
+- name: Point Batch Connect at the shared dataroot
+  ansible.builtin.template:
+    src: dashboard.env.j2
+    dest: "{{ ood_configuration_directory }}/apps/dashboard/env"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
+- name: Point Job Composer at the shared dataroot
+  ansible.builtin.template:
+    src: myjobs.env.j2
+    dest: "{{ ood_configuration_directory }}/apps/myjobs/env"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
+- name: Hide the built-in unscheduled Shell application
+  ansible.builtin.file:
+    path: /var/www/ood/apps/sys/shell
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Export the dedicated OOD context directory
+  ansible.builtin.template:
+    src: epic-ood.exports.j2
+    dest: /etc/exports.d/epic-ood.exports
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload NFS exports
+
+- name: Install the OOD exporter service
+  ansible.builtin.template:
+    src: ondemand_exporter.service.j2
+    dest: /etc/systemd/system/ondemand_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart the OOD exporter
+
+- name: Enable the OOD exporter
+  ansible.builtin.systemd_service:
+    name: ondemand_exporter.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

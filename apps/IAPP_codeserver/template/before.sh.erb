@@ -5,7 +5,7 @@ set -euo pipefail
 # Export the module function if it exists
 [[ $(type -t module) == "function" ]] && export -f module
 
-# export PATH="/opt/code-server/code-server-4.104.2-linux-amd64/bin:$PATH"
+# code-server is installed on each compute host and resolved from PATH.
 
 # Find available port to run server on
 export port=$(find_port ${host})

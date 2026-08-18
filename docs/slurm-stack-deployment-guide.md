@@ -1436,31 +1436,150 @@ http://epic-cluster-controller-01:3000/
 
 ## 13. 工作包 8：接入 OOD
 
-OOD 不属于本轮 Slurm 基础部署，在前七个工作包稳定后单独实施。届时：
+本工作包在控制节点部署 Open OnDemand 4.2。该版本正式支持 Ubuntu 26.04。软件安装保持手工进行；Ansible 只管理门户、Slurm 适配器、IAPP、Remote Files、共享上下文、证书和服务。这样升级 OOD 不会隐式升级 Slurm 或其它节点软件。
 
-- OOD 使用独立登录密码，不复用 Linux SSH 密码；
-- OOD 表单显示友好主机名称，提交值使用完整分区名；
-- IAPP 作业上下文使用控制节点提供的专用共享目录；
-- 各计算主机 Home 和本地存储仍保持独立；
-- 可选 NFS 只作为附加网络路径，掉线不能阻塞登录、Slurm、Home 或本地作业；
-- 旧控制节点只作为备用 `slurmctld` 和紧急命令行入口，不运行 OOD。
+### 13.1 最终结构
 
-### NUMA 与 GPU 亲和性开关
+- 用户通过 `https://控制节点校园网IP/` 登录，使用 OOD 独立密码；
+- OOD 密码与 Linux/SSH 密码无关，在线文件为 `/etc/ood/auth/htpasswd`；
+- 控制节点通过本机 Slurm 客户端提交作业，不依赖 SSH 密钥；
+- IAPP 上下文统一存放在 `/srv/epic/ood/users/<用户>/ondemand/data`；
+- 计算节点用 systemd automount 按需挂载 `/srv/epic/ood`，NFS 不可用只会使 OOD 会话失败，不影响 SSH、Home、本地文件和普通 Slurm 作业；
+- 每台主机的 Home 仍独立。OOD 的 Remote Files 使用 rclone/SFTP 和用户现有的 `~/.ssh/epic_cluster_ed25519` 访问获权计算节点；
+- JupyterLab、Code Server、ttyd、TensorBoard 和 Script 都通过 Slurm 启动，最长 32 小时；普通批处理仍允许 14 天；
+- 表单只提供主机、CPU、GPU、内存、时长、工作目录和应用参数。高级 Slurm 参数由 `Additional sbatch arguments` 原样传入，最终权限仍由 Slurm Association/QoS 约束；
+- Grafana 作为 OOD 导航入口；Prometheus 不直接暴露在 OOD 菜单中。
 
-OOD IAPP 表单后续增加一个默认关闭的“NUMA/GPU 亲和优化”开关。这个开关只影响当前 IAPP 作业的资源绑定参数，不改变分区、默认内存或 cgroup 策略。
+### 13.2 控制节点手工安装
 
-关闭时，IAPP 只按用户填写的 CPU、内存和 GPU 数量提交作业。开启时，提交模板附加以下 Slurm 参数：
+先安装 OOD 4.2 的 Ubuntu 26.04（Resolute）软件源和运行依赖：
 
-```text
---sockets-per-node=1
---cpu-bind=cores
---mem-bind=local
---gres-flags=enforce-binding
+```bash
+sudo apt install apt-transport-https ca-certificates apache2-utils nfs-kernel-server rclone jq curl wget
+
+wget \
+  -O /tmp/ondemand-release-web_4.2.0-resolute_all.deb \
+  https://apt.osc.edu/ondemand/4.2/ondemand-release-web_4.2.0-resolute_all.deb
+
+sudo apt install /tmp/ondemand-release-web_4.2.0-resolute_all.deb
+sudo apt update
+sudo apt install ondemand
+sudo systemctl enable --now apache2 nfs-kernel-server
 ```
 
-开启后的目标是让 CPU 核心集中在一个 socket，将进程绑定到已分配核心，优先使用对应 NUMA 节点的本地内存，并要求 CPU 与所分配 GPU 的 socket 亲和关系一致。该选项适合 A100 上的单 socket、GPU 密集或 CPU/GPU 通信密集任务。
+安装当前最新的 `ondemand_exporter`。这里只在安装时查询最新版本，Ansible 不固定其版本：
 
-如果用户申请的 CPU、内存或 GPU 超过单个 socket 能提供的范围，OOD 不应生成上述绑定参数，并应提示用户关闭该选项或减少资源请求。普通任务默认保持关闭，避免因为亲和性要求导致本来可运行的作业长期等待。
+```bash
+OOD_EXPORTER_TAG="$(curl --silent https://api.github.com/repos/OSC/ondemand_exporter/releases/latest | jq --raw-output .tag_name)"
+OOD_EXPORTER_VERSION="${OOD_EXPORTER_TAG#v}"
+OOD_EXPORTER_ARCHIVE="ondemand_exporter-${OOD_EXPORTER_VERSION}.linux-amd64"
+
+wget \
+  -O "/tmp/${OOD_EXPORTER_ARCHIVE}.tar.gz" \
+  "https://github.com/OSC/ondemand_exporter/releases/download/${OOD_EXPORTER_TAG}/${OOD_EXPORTER_ARCHIVE}.tar.gz"
+
+tar --extract --gzip --file="/tmp/${OOD_EXPORTER_ARCHIVE}.tar.gz" --directory=/tmp
+sudo install \
+  --owner=root \
+  --group=root \
+  --mode=0755 \
+  "/tmp/${OOD_EXPORTER_ARCHIVE}/ondemand_exporter" \
+  /usr/bin/ondemand_exporter
+```
+
+上面命令完成后，`/opt/ood`、`/usr/bin/ondemand_exporter`、Apache 和 NFS 服务应存在。此时不手工修改 `/etc/ood/config`，后续由 Ansible 生成。
+
+### 13.3 计算节点手工准备
+
+在 A100、RTX 4070 以及以后加入 OOD 的计算节点安装 NFS 客户端和 rclone：
+
+```bash
+sudo apt update
+sudo apt install nfs-common rclone
+```
+
+各 IAPP 所需的应用程序按 [OOD 计算节点运行环境](ood-compute-runtime.md) 手工安装。Ansible 不负责跨 Ubuntu/驱动版本安装这些程序。
+
+### 13.4 创建 OOD 登录密码
+
+首次创建一个用户时使用 `-c`，之后增加或修改用户时不能再使用 `-c`，否则会覆盖整个文件：
+
+```bash
+sudo install --directory --owner=root --group=root --mode=0750 /etc/ood/auth
+sudo touch /etc/ood/auth/htpasswd
+sudo chown root:www-data /etc/ood/auth/htpasswd
+sudo chmod 0640 /etc/ood/auth/htpasswd
+sudo htpasswd /etc/ood/auth/htpasswd liuhongbo
+sudo htpasswd /etc/ood/auth/htpasswd yeyuanlin
+```
+
+用户名必须与 Linux/Slurm 用户名一致。普通 Ansible 运行只会在文件不存在时创建空文件，绝不会覆盖已有密码。
+
+密码文件备份是显式的管理员操作。需要备份时，把当时的在线文件复制到仓库并立即加密：
+
+```bash
+cd /srv/epic/repos/EPIC-Slurm-Cluster
+
+sudo install \
+  --owner="$(id --user)" \
+  --group="$(id --group)" \
+  --mode=0600 \
+  /etc/ood/auth/htpasswd \
+  ansible/vars/ood_htpasswd.vault
+
+ansible-vault encrypt ansible/vars/ood_htpasswd.vault
+```
+
+修改 OOD 密码不要求提交代码，也不要求运行 role。只有管理员希望更新仓库备份时才重新执行上述备份操作。恢复同样是一次显式复制，正常部署流程不自动恢复密码。
+
+### 13.5 检查清单并应用配置
+
+确认 `ansible/inventory/group_vars/all/ood.yml` 中的 `ood_server_address` 是控制节点当前校园网 IP；确认每个计算节点 host vars 有易读的 `ood_display_name`。主机菜单与权限从 `slurm_partitions.yml`、`users.yml` 和 host vars 自动生成，不再维护第二份列表。
+
+```bash
+cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
+
+ansible-playbook playbooks/ood.yml --check --diff
+ansible-playbook playbooks/ood.yml
+ansible-playbook playbooks/monitoring.yml
+```
+
+该流程会完成以下工作：
+
+1. 生成自签名 IP 证书和 Basic Auth 门户；
+2. 生成本地 Slurm 适配器及 OOD 页面配置；
+3. 建立 `/srv/epic/ood` 用户上下文并导出给计算节点；
+4. 在计算节点启用按需 NFS 挂载；
+5. 发布五个 IAPP、Grafana 链接和三个 Job Composer 模板；
+6. 按 `ssh_access` 为每个用户生成对应 rclone/SFTP Remote Files；
+7. 启动 `ondemand_exporter`，并让 Prometheus 每 2 分钟采集一次。
+
+浏览器首次访问自签名证书时会显示警告；在校园网内确认地址正确后接受即可。
+
+### 13.6 最小验收
+
+```bash
+systemctl is-active apache2 nfs-kernel-server ondemand_exporter
+curl --silent http://127.0.0.1:9301/metrics | head
+```
+
+然后通过浏览器确认：
+
+- OOD 独立密码能够登录；
+- IAPP 的 Target host 只显示该用户有 Association 的主机；
+- 提交一个短 ttyd 或 JupyterLab 会话后，作业出现在 `squeue`，页面能够连接；
+- Remote Files 只显示该用户 `ssh_access` 中的主机；
+- Job Composer 中存在 Basic、GPU 和 Array 三个模板；
+- Prometheus 的 `open-ondemand` target 为 `UP`。
+
+### 13.7 日常修改规则
+
+- 改密码：只运行 `htpasswd`；
+- 改控制节点 IP：修改 `ood_server_address` 后重新运行 `ood.yml`；
+- 改用户可见主机：修改 Slurm 分区授权/Association 相关清单，然后运行 Association 与 OOD playbook；
+- 改 IAPP：修改仓库中的 `apps/IAPP_*`，再运行 `ood.yml`；
+- 新增计算节点：先按运行环境文档安装程序，再加入 inventory、Slurm 分区与用户 `ssh_access`，最后运行 `ood.yml`；
+- NFS 故障：只处理 OOD 上下文服务，不要把用户 Home、Slurm 状态或普通作业迁入该 NFS。
 
 ## 14. 新增计算节点流程
 

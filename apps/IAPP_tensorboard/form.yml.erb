@@ -1,42 +1,91 @@
-cluster:
-  - "epic"
+<%
+  require 'etc'
+  require 'yaml'
+
+  partition_file = '/etc/ood/config/site.d/partitions.yml'
+  partitions = File.exist?(partition_file) ? YAML.safe_load(File.read(partition_file)) : {}
+  current_user = Etc.getlogin
+  partitions.select! { |_name, config| Array(config['allowed_users']).include?(current_user) }
+
+  defaults = { 'cpu_max' => 4, 'gpu_max' => 0, 'mem_max_gb' => 16 }
+  partitions.transform_values! { |config| defaults.merge(config || {}) }
+
+  def yaml_quote(value)
+    value.to_s.gsub("'", "''")
+  end
+%>
+---
+cluster: epic
 
 form:
-  - auto_queues
+  - resource_partition
   - cpus
+  - gpus
+  - memory
   - bc_num_hours
   - logdir
   - auto_accounts
   - extra_sbatch
 
-
 attributes:
   resource_partition:
-    display: true
-    label: "Resource Partition"
-    widget: "text_field"
-    readonly: true
-    value: "cpu"
+    label: Target host
+    help: Only hosts available to your Slurm account are listed.
+    widget: select
+    options:
+<% partitions.each do |name, config| %>
+<%   cpu_max = config['cpu_max'].to_i %>
+<%   gpu_max = config['gpu_max'].to_i %>
+<%   memory_max = config['mem_max_gb'].to_i %>
+      - - '<%= yaml_quote(config['label'] || name) %>'
+        - '<%= yaml_quote(config['partition'] || name) %>'
+        - data-label-cpus: 'CPU cores (1-<%= cpu_max %>)'
+          data-max-cpus: <%= cpu_max %>
+          data-label-memory: 'Memory (GB, 1-<%= memory_max %>)'
+          data-max-memory: <%= memory_max %>
+          data-hide-gpus: <%= gpu_max <= 0 %>
+          data-label-gpus: 'GPUs (<%= gpu_max <= 0 ? 0 : 1 %>-<%= gpu_max %>)'
+          data-min-gpus: <%= gpu_max <= 0 ? 0 : 1 %>
+          data-max-gpus: <%= gpu_max %>
+          data-set-gpus: <%= gpu_max <= 0 ? 0 : 1 %>
+<% end %>
 
-  cpus: 1
+  cpus:
+    label: CPU cores
+    widget: number_field
+    value: 2
+    min: 1
+    max: 128
+
+  gpus:
+    label: GPUs
+    widget: number_field
+    value: 0
+    min: 0
+    max: 8
+
+  memory:
+    label: Memory (GB)
+    widget: number_field
+    value: 8
+    min: 1
+    max: 1024
 
   bc_num_hours:
-    label: "Number of hours (max 24h)"
-    value: 1
-    min: 0
-    max: 24
-    display: true
+    label: Runtime (hours, maximum 32)
+    widget: number_field
+    value: 4
+    min: 1
+    max: 32
 
   logdir:
-    label: "Tensorboard Log Dir"
-    help: "Log directory on target node."
-    widget: "text_field"
+    label: TensorBoard log directory on the target host
+    widget: text_field
     required: true
-    display: true
-    directory: "<%= ENV['HOME'] %>"
+    value: "<%= ENV['HOME'] %>"
 
   extra_sbatch:
-    label: "Additional Arguments"
+    label: Additional sbatch arguments
     widget: text_field
     value: ""
-    help: "Leave empty unless you know what you are doing!"
+    help: Leave empty unless you know what you are doing.

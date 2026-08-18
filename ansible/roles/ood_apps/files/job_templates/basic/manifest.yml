@@ -1,0 +1,6 @@
+---
+name: Basic Slurm job
+host: epic
+script: job.sh
+notes: Submit an ordinary CPU job. Edit the SBATCH values before submission.
+

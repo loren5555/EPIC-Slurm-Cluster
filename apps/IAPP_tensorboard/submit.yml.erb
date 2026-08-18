@@ -1,8 +1,17 @@
+<% require 'json'; require 'shellwords' %>
 ---
 batch_connect:
-  template: "basic"
+  template: basic
 
 script:
+  queue_name: "<%= resource_partition %>"
   native:
-    - "--cpus-per-task=<%= cpus.to_i %>"  # CPU cores
-    - "<%= extra_sbatch %>"
+    - "--cpus-per-task=<%= cpus.to_i %>"
+    - "--mem=<%= memory.to_i %>G"
+    - "--time=<%= bc_num_hours.to_i %>:00:00"
+<% if gpus.to_i > 0 %>
+    - "--gres=gpu:<%= gpus.to_i %>"
+<% end %>
+<% Shellwords.split(extra_sbatch.to_s).each do |argument| %>
+    - <%= argument.to_json %>
+<% end %>

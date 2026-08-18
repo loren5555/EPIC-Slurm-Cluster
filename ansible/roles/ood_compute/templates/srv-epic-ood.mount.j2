@@ -1,0 +1,14 @@
+[Unit]
+Description=EPIC Open OnDemand shared session context
+After=network-online.target
+Wants=network-online.target
+
+[Mount]
+What={{ groups['ood_servers'][0] }}:{{ ood_shared_root }}
+Where={{ ood_shared_root }}
+Type=nfs
+Options=rw,softerr,timeo=50,retrans=2,retry=0,_netdev,nofail
+TimeoutSec=20s
+
+[Install]
+WantedBy=multi-user.target

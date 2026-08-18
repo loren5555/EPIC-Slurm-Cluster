@@ -1,0 +1,24 @@
+---
+- name: Configure the Open OnDemand portal and shared context source
+  hosts: ood_servers
+  become: true
+  vars_files:
+    - ../vars/users.yml
+    - ../vars/slurm_partitions.yml
+  roles:
+    - role: ood_controller
+
+- name: Configure on-demand OOD context mounts on compute nodes
+  hosts: compute_nodes
+  become: true
+  roles:
+    - role: ood_compute
+
+- name: Publish EPIC applications and user-facing host configuration
+  hosts: ood_servers
+  become: true
+  vars_files:
+    - ../vars/users.yml
+    - ../vars/slurm_partitions.yml
+  roles:
+    - role: ood_apps

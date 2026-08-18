@@ -1,0 +1,30 @@
+---
+# Users reach the portal through the controller's current campus-network IP.
+# Update this value and rerun ood.yml when that address changes.
+ood_server_address: 10.17.207.105
+
+# Batch Connect and Job Composer exchange their context through this one small
+# NFS export. User homes and Slurm state remain local to each host.
+ood_shared_root: /srv/epic/ood
+ood_dashboard_dataroot: "{{ ood_shared_root }}/users/$USER/ondemand/data/sys/dashboard"
+ood_myjobs_dataroot: "{{ ood_shared_root }}/users/$USER/ondemand/data/sys/myjobs"
+ood_session_retention_days: 30
+ood_automount_idle_seconds: 300
+
+# Interactive applications are deliberately shorter than ordinary 14-day batch
+# jobs so abandoned browser sessions do not occupy accelerators indefinitely.
+ood_interactive_maximum_hours: 32
+
+ood_configuration_directory: /etc/ood/config
+ood_authentication_file: /etc/ood/auth/htpasswd
+ood_tls_directory: /etc/ood/tls
+ood_application_deploy_root: /opt/ood_apps/epic
+ood_exporter_port: 9301
+
+ood_system_applications:
+  - IAPP_jupyter
+  - IAPP_codeserver
+  - IAPP_ttyd
+  - IAPP_tensorboard
+  - IAPP_script
+  - LINK_grafana

@@ -11,5 +11,8 @@ slurm_real_memory: 126000
 # Inventory only declares the resource count that the node must register.
 slurm_gpu_count: 1
 
+# Friendly text shown in OOD; Slurm still receives the complete partition name.
+ood_display_name: "RTX 4070 Ti SUPER × 1 — Node 01 — Free"
+
 # Keep accounting comparable with the other GPU partitions.
 slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"

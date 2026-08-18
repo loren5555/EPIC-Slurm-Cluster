@@ -20,6 +20,15 @@ scrape_configs:
       - targets:
           - "127.0.0.1:{{ monitoring_grafana_port }}"
 
+  - job_name: open-ondemand
+    scrape_interval: {{ monitoring_slurm_state_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['ood_servers'] | sort %}
+          - "{{ host_name }}:{{ monitoring_ood_exporter_port }}"
+{% endfor %}
+
   - job_name: node
     scrape_interval: {{ monitoring_fast_scrape_interval }}
     scrape_timeout: {{ monitoring_fast_scrape_timeout }}

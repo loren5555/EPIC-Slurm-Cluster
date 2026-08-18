@@ -1,0 +1,9 @@
+{% for host_name in ood_rclone_user.ssh_access | default([]) | sort %}
+[{{ host_name }}]
+type = sftp
+host = {{ host_name }}
+user = {{ ood_rclone_user.name }}
+key_file = /home/{{ ood_rclone_user.name }}/.ssh/epic_cluster_ed25519
+disable_hashcheck = true
+
+{% endfor %}

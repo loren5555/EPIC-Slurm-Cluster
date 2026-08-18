@@ -1,0 +1,17 @@
+---
+servername: "{{ ood_server_address }}"
+
+ssl:
+  - "SSLCertificateFile {{ ood_tls_directory }}/ood.crt"
+  - "SSLCertificateKeyFile {{ ood_tls_directory }}/ood.key"
+
+auth:
+  - "AuthType Basic"
+  - "AuthName EPIC Open OnDemand"
+  - "AuthUserFile /etc/ood/auth/htpasswd"
+  - "RequestHeader unset Authorization"
+  - "Require valid-user"
+
+host_regex: "epic-cluster-(controller|compute)-[a-z0-9-]+"
+node_uri: "/node"
+rnode_uri: "/rnode"

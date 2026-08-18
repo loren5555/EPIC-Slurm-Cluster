@@ -1,0 +1,13 @@
+---
+v2:
+  metadata:
+    title: "EPIC Slurm Cluster"
+  login:
+    host: "{{ slurm_controller_host }}"
+  job:
+    adapter: "slurm"
+    submit_host: "{{ slurm_controller_host }}"
+    bin: "/usr/bin"
+    conf: "/etc/slurm/slurm.conf"
+  batch_connect:
+    ssh_allow: false

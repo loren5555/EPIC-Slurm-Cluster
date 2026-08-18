@@ -7,7 +7,4 @@
 - import_playbook: slurm.yml  # Enable enforcement only after database policy.
 - import_playbook: grafana.yml  # Dashboard service must exist before it is scraped.
 - import_playbook: monitoring.yml  # Exporters and local Prometheus storage.
-
-# Future subsystems remain separate so their changes cannot accidentally alter
-# the already stable identity and SSH roles.
-# - ood.yml
+- import_playbook: ood.yml  # Portal, shared IAPP context, and published apps.

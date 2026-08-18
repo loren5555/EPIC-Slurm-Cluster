@@ -1,0 +1,24 @@
+---
+# Generated from slurm_partitions, cluster_users, and hostvars. Slurm
+# Associations remain authoritative; this file only keeps the forms useful.
+{% for partition in slurm_partitions %}
+{% set node = hostvars[partition.host] %}
+{% set authorized = namespace(users=[]) %}
+{% for user in cluster_users %}
+{% if (user.name in partition.allowed_users or user.slurm_account in partition.allowed_accounts) and user.name not in partition.denied_users %}
+{% set authorized.users = authorized.users + [user.name] %}
+{% endif %}
+{% endfor %}
+{{ partition.name }}:
+  label: "{{ node.ood_display_name | default(partition.name) }}"
+  partition: "{{ partition.name }}"
+  management_class: "{{ partition.management_class }}"
+  resource_type: "{{ 'gpu' if (node.slurm_gpu_count | default(0) | int) > 0 else 'cpu' }}"
+  cpu_max: {{ node.slurm_cpus }}
+  mem_max_gb: {{ (node.slurm_real_memory / 1024) | int }}
+  gpu_max: {{ node.slurm_gpu_count | default(0) }}
+  allowed_users:
+{% for username in authorized.users | sort %}
+    - "{{ username }}"
+{% endfor %}
+{% endfor %}

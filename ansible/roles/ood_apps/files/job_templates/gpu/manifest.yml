@@ -1,0 +1,6 @@
+---
+name: GPU Slurm job
+host: epic
+script: job.sh
+notes: Request one GPU. Select a partition on which your account has access.
+

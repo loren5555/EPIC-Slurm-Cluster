@@ -7,6 +7,7 @@ monitoring_grafana_port: 3000
 monitoring_node_exporter_port: 9100
 monitoring_dcgm_exporter_port: 9400
 monitoring_nvitop_exporter_port: 5050
+monitoring_ood_exporter_port: 9301
 
 # Hardware signals need enough resolution to show short faults. Slurm state is
 # much slower-moving, so it is intentionally cheaper to collect.

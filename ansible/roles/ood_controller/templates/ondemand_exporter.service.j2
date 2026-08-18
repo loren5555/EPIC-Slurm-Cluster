@@ -1,0 +1,14 @@
+[Unit]
+Description=Open OnDemand Prometheus exporter
+After=apache2.service
+Wants=apache2.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/ondemand_exporter --web.listen-address=0.0.0.0:{{ ood_exporter_port }} --path.passenger-status=/usr/sbin/passenger-status
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
