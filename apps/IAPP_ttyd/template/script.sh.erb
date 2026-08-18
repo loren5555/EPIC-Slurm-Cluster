@@ -25,5 +25,4 @@ exec "ttyd" \
     --writable \
     --auth-header X-Forwarded-User \
     --cwd <%= context.working_dir %> \
-    "/bin/bash"
-
+    "/bin/bash" -l

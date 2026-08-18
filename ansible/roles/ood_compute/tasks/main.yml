@@ -3,9 +3,6 @@
   ansible.builtin.file:
     path: "{{ ood_shared_root }}"
     state: directory
-    owner: root
-    group: root
-    mode: "0755"
 
 - name: Install the OOD context mount unit
   ansible.builtin.template:
