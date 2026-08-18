@@ -149,7 +149,7 @@ def render_family(
         label_text = ",".join(
             f'{key}="{escape_label(label_value)}"' for key, label_value in labels
         )
-        suffix = f"{{{label_text}}}" if label_text else ""
+        suffix = "{" + label_text + "}" if label_text else ""
         lines.append(f"{name}{suffix} {value:g}")
     return lines
 
