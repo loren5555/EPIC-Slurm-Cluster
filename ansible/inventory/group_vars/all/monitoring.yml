@@ -3,6 +3,7 @@
 # from inventory hostnames so temporary management addresses remain private to
 # Ansible's connection settings.
 monitoring_prometheus_port: 9090
+monitoring_grafana_port: 3000
 monitoring_node_exporter_port: 9100
 monitoring_dcgm_exporter_port: 9400
 monitoring_nvitop_exporter_port: 5050
@@ -17,9 +18,9 @@ monitoring_slow_scrape_timeout: "10s"
 monitoring_prometheus_scrape_interval: "30s"
 monitoring_dcgm_collection_interval_milliseconds: 10000
 
-# The controller keeps three months of data but never allows monitoring to use
+# The controller keeps six months of data but never allows monitoring to use
 # more than 100 GB of its local system disk.
-monitoring_prometheus_retention_time: "90d"
+monitoring_prometheus_retention_time: "180d"
 monitoring_prometheus_retention_size: "100GB"
 monitoring_prometheus_configuration_directory: /etc/prometheus
 monitoring_prometheus_data_directory: /var/lib/prometheus
@@ -27,6 +28,41 @@ monitoring_node_exporter_textfile_directory: /var/lib/node_exporter/textfile_col
 monitoring_slurm_usage_collector_path: /usr/local/libexec/epic-slurm-usage-collector
 monitoring_slurm_usage_output_file: "{{ monitoring_node_exporter_textfile_directory }}/slurm_usage.prom"
 monitoring_slurm_usage_collection_interval: "2min"
+monitoring_slurm_accounting_collector_path: /usr/local/libexec/epic-slurm-accounting-collector
+monitoring_slurm_accounting_output_file: "{{ monitoring_node_exporter_textfile_directory }}/slurm_accounting.prom"
+monitoring_slurm_accounting_collection_interval: "10min"
+# Keep this origin stable. The accounting collector exports cumulative counters
+# from this point so Grafana can calculate changes for any range Prometheus retains.
+monitoring_slurm_accounting_start_time: "2026-08-01T00:00:00"
 monitoring_dcgm_configuration_file: /etc/dcgm-exporter/config.yaml
 monitoring_dcgm_exporter_image: nvcr.io/nvidia/k8s/dcgm-exporter:latest
 monitoring_dcgm_exporter_container_name: dcgm-exporter
+
+# Grafana is installed manually. Ansible provisions the data source, managed
+# dashboards, and a separate writable folder for experiments.
+monitoring_grafana_configuration_directory: /etc/grafana
+monitoring_grafana_dashboard_directory: /var/lib/grafana/dashboards
+monitoring_grafana_prometheus_datasource_uid: epic-prometheus
+monitoring_grafana_upstream_dashboards:
+  - name: nvitop-exporter
+    url: https://raw.githubusercontent.com/XuehaiPan/nvitop/main/nvitop-exporter/grafana/dashboard.json
+    filename: nvitop-exporter.json
+  - name: nvidia-dcgm-exporter
+    url: https://raw.githubusercontent.com/NVIDIA/dcgm-exporter/main/grafana/dcgm-exporter-dashboard.json
+    filename: nvidia-dcgm-exporter.json
+  - name: prometheus-stats
+    url: https://grafana.com/api/dashboards/2/revisions/2/download
+    filename: prometheus-stats.json
+  - name: grafana-internal-metrics
+    url: https://grafana.com/api/dashboards/24838/revisions/1/download
+    filename: grafana-internal-metrics.json
+monitoring_grafana_community_dashboards:
+  - name: slurm-native-openmetrics
+    url: https://grafana.com/api/dashboards/24979/revisions/1/download
+    filename: slurm-native-openmetrics.json
+  - name: node-exporter-full
+    url: https://grafana.com/api/dashboards/1860/revisions/37/download
+    filename: node-exporter-full.json
+  - name: grafana-internal-stats
+    url: https://grafana.com/api/dashboards/20138/revisions/1/download
+    filename: grafana-internal-stats.json

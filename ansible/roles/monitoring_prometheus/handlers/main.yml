@@ -23,3 +23,20 @@
     state: restarted
   listen: Refresh Slurm usage collector
   when: not ansible_check_mode
+
+- name: Run the Slurm accounting collector
+  ansible.builtin.systemd_service:
+    name: epic-slurm-accounting-collector.service
+    daemon_reload: true
+    state: started
+  listen: Refresh Slurm accounting collector
+  when: not ansible_check_mode
+
+- name: Restart the Slurm accounting collector timer
+  ansible.builtin.systemd_service:
+    name: epic-slurm-accounting-collector.timer
+    daemon_reload: true
+    enabled: true
+    state: restarted
+  listen: Refresh Slurm accounting collector
+  when: not ansible_check_mode

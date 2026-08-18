@@ -1,0 +1,39 @@
+# This file is managed by Ansible.
+apiVersion: 1
+
+providers:
+  - name: upstream
+    folder: Upstream
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: {{ monitoring_grafana_dashboard_directory }}/upstream
+
+  - name: community-references
+    folder: Community References
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: {{ monitoring_grafana_dashboard_directory }}/community-references
+
+  - name: epic-operations
+    folder: EPIC Operations
+    type: file
+    disableDeletion: false
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: {{ monitoring_grafana_dashboard_directory }}/epic-operations
+
+  - name: experiments
+    folder: Experiments
+    type: file
+    disableDeletion: true
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: {{ monitoring_grafana_dashboard_directory }}/experiments

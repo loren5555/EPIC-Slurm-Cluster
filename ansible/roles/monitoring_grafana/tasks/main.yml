@@ -1,0 +1,117 @@
+---
+- name: Locate the manually installed Grafana server
+  ansible.builtin.stat:
+    path: /usr/sbin/grafana-server
+  register: monitoring_grafana_binary
+
+- name: Require Grafana before configuring its service
+  ansible.builtin.assert:
+    that:
+      - monitoring_grafana_binary.stat.exists
+      - monitoring_grafana_binary.stat.executable | default(false)
+    fail_msg: >-
+      Install Grafana OSS manually before running the Grafana playbook.
+    quiet: true
+
+- name: Create Grafana provisioning and dashboard directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: grafana
+    mode: "0755"
+  loop:
+    - "{{ monitoring_grafana_configuration_directory }}/provisioning/datasources"
+    - "{{ monitoring_grafana_configuration_directory }}/provisioning/dashboards"
+    - "{{ monitoring_grafana_dashboard_directory }}/upstream"
+    - "{{ monitoring_grafana_dashboard_directory }}/community-references"
+    - "{{ monitoring_grafana_dashboard_directory }}/epic-operations"
+    - "{{ monitoring_grafana_dashboard_directory }}/experiments"
+
+- name: Install the Grafana service configuration
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: "{{ monitoring_grafana_configuration_directory }}/grafana.ini"
+    owner: root
+    group: grafana
+    mode: "0640"
+  notify: Restart Grafana
+
+- name: Provision the Prometheus data source
+  ansible.builtin.template:
+    src: prometheus-datasource.yml.j2
+    dest: "{{ monitoring_grafana_configuration_directory }}/provisioning/datasources/prometheus.yml"
+    owner: root
+    group: grafana
+    mode: "0644"
+  notify: Restart Grafana
+
+- name: Provision the dashboard folders
+  ansible.builtin.template:
+    src: dashboard-providers.yml.j2
+    dest: "{{ monitoring_grafana_configuration_directory }}/provisioning/dashboards/epic.yml"
+    owner: root
+    group: grafana
+    mode: "0644"
+  notify: Restart Grafana
+
+- name: Install the EPIC operations dashboards
+  ansible.builtin.copy:
+    src: dashboards/epic-operations/
+    dest: "{{ monitoring_grafana_dashboard_directory }}/epic-operations/"
+    owner: root
+    group: grafana
+    mode: "0644"
+  notify: Restart Grafana
+
+- name: Download upstream-maintained dashboards once
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ monitoring_grafana_dashboard_directory }}/upstream/{{ item.filename }}"
+    owner: root
+    group: grafana
+    mode: "0644"
+    force: false
+  loop: "{{ monitoring_grafana_upstream_dashboards }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart Grafana
+
+- name: Download reviewed community reference dashboards once
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ monitoring_grafana_dashboard_directory }}/community-references/{{ item.filename }}"
+    owner: root
+    group: grafana
+    mode: "0644"
+    force: false
+  loop: "{{ monitoring_grafana_community_dashboards }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart Grafana
+
+- name: Bind downloaded dashboard data-source placeholders to Prometheus
+  ansible.builtin.replace:
+    path: >-
+      {{ monitoring_grafana_dashboard_directory }}/{{
+        'upstream' if item in monitoring_grafana_upstream_dashboards
+        else 'community-references'
+      }}/{{ item.filename }}
+    regexp: '\$\{DS_PROMETHEUS\}'
+    replace: Prometheus
+  loop: "{{ monitoring_grafana_upstream_dashboards + monitoring_grafana_community_dashboards }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: not ansible_check_mode
+  notify: Restart Grafana
+
+- name: Apply pending Grafana configuration changes
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+
+- name: Keep Grafana enabled and running
+  ansible.builtin.systemd_service:
+    name: grafana-server.service
+    enabled: true
+    state: started
+  when: not ansible_check_mode

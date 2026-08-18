@@ -13,6 +13,13 @@ scrape_configs:
       - targets:
           - "127.0.0.1:{{ monitoring_prometheus_port }}"
 
+  - job_name: grafana
+    scrape_interval: {{ monitoring_prometheus_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+          - "127.0.0.1:{{ monitoring_grafana_port }}"
+
   - job_name: node
     scrape_interval: {{ monitoring_fast_scrape_interval }}
     scrape_timeout: {{ monitoring_fast_scrape_timeout }}

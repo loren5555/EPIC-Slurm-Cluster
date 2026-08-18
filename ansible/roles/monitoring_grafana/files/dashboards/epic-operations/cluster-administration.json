@@ -1,0 +1,205 @@
+{
+  "annotations": {"list": []},
+  "description": "Aggregated Slurm governance and usage reports. Operational changes remain command-line administrator work.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Terminal jobs recorded during the selected range.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(increase(epic_slurm_accounting_jobs_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range]))", "instant": true, "refId": "A"}],
+      "title": "Finished Jobs",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Completed jobs divided by all terminal jobs.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(increase(epic_slurm_accounting_jobs_total{state=\"COMPLETED\",account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])) / clamp_min(sum(increase(epic_slurm_accounting_jobs_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])), 1)", "instant": true, "refId": "A"}],
+      "title": "Completion Ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Allocated GPU card-hours during the selected range.",
+      "fieldConfig": {"defaults": {"unit": "h"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(increase(epic_slurm_accounting_gpu_allocated_seconds_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])) / 3600", "instant": true, "refId": "A"}],
+      "title": "GPU Card-hours",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Median elapsed time estimated from accounting histogram buckets.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "histogram_quantile(0.5, sum by (le) (increase(epic_slurm_job_elapsed_seconds_bucket{account=~\"$account\",partition=~\"$partition\"}[$__range])))", "instant": true, "refId": "A"}],
+      "title": "Median Runtime",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Job outcomes over time. No JobID or command content is collected.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 5},
+      "id": 5,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum by (state) (increase(epic_slurm_accounting_jobs_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__rate_interval]))", "legendFormat": "{{state}}", "refId": "A"}],
+      "title": "Job Outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Median submission-to-start delay for jobs that entered execution.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 5},
+      "id": 6,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "histogram_quantile(0.5, sum by (le, partition) (increase(epic_slurm_job_queue_seconds_bucket{account=~\"$account\",partition=~\"$partition\"}[$__rate_interval])))", "legendFormat": "{{partition}}", "refId": "A"}],
+      "title": "Median Queue Time by Partition",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Selected-range GPU use grouped by Account.",
+      "fieldConfig": {"defaults": {"unit": "h"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 13},
+      "id": 7,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "showUnfilled": true},
+      "targets": [{"expr": "sum by (account) (increase(epic_slurm_accounting_gpu_allocated_seconds_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])) / 3600", "instant": true, "legendFormat": "{{account}}", "refId": "A"}],
+      "title": "GPU Card-hours by Account",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Selected-range GPU use grouped by user.",
+      "fieldConfig": {"defaults": {"unit": "h"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 13},
+      "id": 8,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "showUnfilled": true},
+      "targets": [{"expr": "topk(20, sum by (user) (increase(epic_slurm_accounting_gpu_allocated_seconds_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])) / 3600)", "instant": true, "legendFormat": "{{user}}", "refId": "A"}],
+      "title": "Top User GPU Card-hours",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Current Fair Tree factors and normalized usage. Lower fair-share values reduce queue priority rather than blocking work.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 22},
+      "id": 9,
+      "options": {"cellHeight": "sm", "showHeader": true},
+      "targets": [
+        {"expr": "epic_slurm_fairshare{account=~\"$account\",user=~\"$user\"}", "format": "table", "instant": true, "legendFormat": "fairshare", "refId": "A"},
+        {"expr": "epic_slurm_normalized_usage{account=~\"$account\",user=~\"$user\"}", "format": "table", "instant": true, "legendFormat": "normalized usage", "refId": "B"}
+      ],
+      "title": "Current Fair-share Report",
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Current pending workload grouped by scheduler reason.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 22},
+      "id": 10,
+      "options": {"cellHeight": "sm", "showHeader": true},
+      "targets": [{"expr": "sum by (partition, reason) (epic_slurm_pending_jobs{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"})", "format": "table", "instant": true, "refId": "A"}],
+      "title": "Pending Reasons",
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Users with many jobs of five minutes or less in the selected range.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+      "id": 11,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "showUnfilled": true},
+      "targets": [{"expr": "topk(20, sum by (user) (increase(epic_slurm_short_jobs_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])))", "instant": true, "legendFormat": "{{user}}", "refId": "A"}],
+      "title": "Frequent Short Jobs",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Failure, cancellation, and timeout ratio grouped by user.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0, "unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+      "id": 12,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "showUnfilled": true},
+      "targets": [{"expr": "topk(20, sum by (user) (increase(epic_slurm_accounting_jobs_total{state=~\"FAILED|CANCELLED|TIMEOUT\",account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])) / clamp_min(sum by (user) (increase(epic_slurm_accounting_jobs_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])), 1))", "instant": true, "legendFormat": "{{user}}", "refId": "A"}],
+      "title": "Non-completion Ratio by User",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Mean elapsed time of terminal jobs in the selected range.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 40},
+      "id": 13,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(increase(epic_slurm_job_elapsed_seconds_sum{account=~\"$account\",partition=~\"$partition\"}[$__range])) / clamp_min(sum(increase(epic_slurm_job_elapsed_seconds_count{account=~\"$account\",partition=~\"$partition\"}[$__range])), 1)", "instant": true, "refId": "A"}],
+      "title": "Average Runtime",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Mean submission-to-start delay in the selected range.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 40},
+      "id": 14,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(increase(epic_slurm_job_queue_seconds_sum{account=~\"$account\",partition=~\"$partition\"}[$__range])) / clamp_min(sum(increase(epic_slurm_job_queue_seconds_count{account=~\"$account\",partition=~\"$partition\"}[$__range])), 1)", "instant": true, "refId": "A"}],
+      "title": "Average Queue Time",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Fair-share factor history for selected users and Accounts.",
+      "fieldConfig": {"defaults": {"max": 1, "min": 0}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40},
+      "id": 15,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "epic_slurm_fairshare{account=~\"$account\",user=~\"$user\"}", "legendFormat": "{{account}} / {{user}}", "refId": "A"}],
+      "title": "Fair-share History",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Selected-range allocated GPU card-hours grouped by host partition.",
+      "fieldConfig": {"defaults": {"unit": "h"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 48},
+      "id": 16,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "showUnfilled": true},
+      "targets": [{"expr": "sum by (partition) (increase(epic_slurm_accounting_gpu_allocated_seconds_total{account=~\"$account\",user=~\"$user\",partition=~\"$partition\"}[$__range])) / 3600", "instant": true, "legendFormat": "{{partition}}", "refId": "A"}],
+      "title": "GPU Card-hours by Partition",
+      "type": "bargauge"
+    }
+  ],
+  "refresh": "2m",
+  "schemaVersion": 41,
+  "tags": ["epic", "operations", "administration", "slurm"],
+  "templating": {
+    "list": [
+      {"allValue": ".*", "current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "epic-prometheus"}, "definition": "label_values(epic_slurm_accounting_jobs_total, account)", "includeAll": true, "label": "Account", "multi": true, "name": "account", "query": {"query": "label_values(epic_slurm_accounting_jobs_total, account)", "refId": "VariableQueryEditor-Account"}, "refresh": 1, "type": "query"},
+      {"allValue": ".*", "current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "epic-prometheus"}, "definition": "label_values(epic_slurm_accounting_jobs_total{account=~\"$account\"}, user)", "includeAll": true, "label": "User", "multi": true, "name": "user", "query": {"query": "label_values(epic_slurm_accounting_jobs_total{account=~\"$account\"}, user)", "refId": "VariableQueryEditor-User"}, "refresh": 1, "type": "query"},
+      {"allValue": ".*", "current": {"text": "All", "value": "$__all"}, "datasource": {"type": "prometheus", "uid": "epic-prometheus"}, "definition": "label_values(epic_slurm_accounting_jobs_total, partition)", "includeAll": true, "label": "Partition", "multi": true, "name": "partition", "query": {"query": "label_values(epic_slurm_accounting_jobs_total, partition)", "refId": "VariableQueryEditor-Partition"}, "refresh": 1, "type": "query"}
+    ]
+  },
+  "time": {"from": "now-30d", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Cluster Administration",
+  "uid": "epic-cluster-administration",
+  "version": 1
+}

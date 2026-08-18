@@ -66,7 +66,7 @@ class MonitoringRoleTests(unittest.TestCase):
             'monitoring_slurm_scheduler_scrape_interval: "5m"',
             'monitoring_slow_scrape_timeout: "10s"',
             'monitoring_prometheus_scrape_interval: "30s"',
-            'monitoring_prometheus_retention_time: "90d"',
+            'monitoring_prometheus_retention_time: "180d"',
             'monitoring_prometheus_retention_size: "100GB"',
             "monitoring_dcgm_collection_interval_milliseconds: 10000",
         )
@@ -204,6 +204,43 @@ class MonitoringRoleTests(unittest.TestCase):
 
         self.assertNotIn('"job_id"', collector)
 
+    def test_controller_collects_slow_accounting_report_metrics(self) -> None:
+        tasks = read_ansible_file("roles/monitoring_prometheus/tasks/main.yml")
+        service = read_ansible_file(
+            "roles/monitoring_prometheus/templates/epic-slurm-accounting-collector.service.j2"
+        )
+        timer = read_ansible_file(
+            "roles/monitoring_prometheus/templates/epic-slurm-accounting-collector.timer.j2"
+        )
+        collector = read_ansible_file(
+            "roles/monitoring_prometheus/templates/epic-slurm-accounting-collector.py.j2"
+        )
+
+        self.assertIn("epic-slurm-accounting-collector.timer", tasks)
+        self.assertIn("Type=oneshot", service)
+        self.assertIn("--cluster {{ slurm_cluster_name }}", service)
+        self.assertIn(
+            "OnUnitActiveSec={{ monitoring_slurm_accounting_collection_interval }}",
+            timer,
+        )
+        self.assertIn("/usr/bin/sacct", collector)
+        self.assertIn("/usr/bin/sshare", collector)
+
+        for metric in (
+            "epic_slurm_accounting_jobs_total",
+            "epic_slurm_accounting_gpu_allocated_seconds_total",
+            "epic_slurm_job_elapsed_seconds",
+            "epic_slurm_job_queue_seconds",
+            "epic_slurm_short_jobs_total",
+            "epic_slurm_fairshare",
+            "epic_slurm_normalized_usage",
+            "epic_slurm_accounting_collector_last_success_unixtime",
+        ):
+            self.assertIn(metric, collector)
+
+        for forbidden_label in ('"job_id"', '"command"', '"work_dir"'):
+            self.assertNotIn(forbidden_label, collector)
+
     def test_slurm_usage_collector_parses_generic_and_typed_gpu_tres(self) -> None:
         collector_path = (
             ANSIBLE_DIRECTORY
@@ -231,6 +268,10 @@ class MonitoringRoleTests(unittest.TestCase):
         self.assertLess(gpu_position, prometheus_position)
         self.assertLess(
             site.index("import_playbook: slurm.yml"),
+            site.index("import_playbook: monitoring.yml"),
+        )
+        self.assertLess(
+            site.index("import_playbook: grafana.yml"),
             site.index("import_playbook: monitoring.yml"),
         )
 

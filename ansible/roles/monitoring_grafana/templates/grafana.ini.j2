@@ -1,0 +1,22 @@
+# This file is managed by Ansible.
+[server]
+http_addr = 0.0.0.0
+http_port = {{ monitoring_grafana_port }}
+domain = epic-cluster-controller-01
+root_url = http://epic-cluster-controller-01:{{ monitoring_grafana_port }}/
+
+[security]
+admin_user = administrator
+
+[users]
+allow_sign_up = false
+
+[auth.anonymous]
+enabled = false
+
+[metrics]
+enabled = true
+disable_total_stats = false
+
+[dashboards]
+default_home_dashboard_path = {{ monitoring_grafana_dashboard_directory }}/epic-operations/cluster-overview.json

@@ -945,7 +945,7 @@ grep -E 'AccountingStorageEnforce|Priority(Type|Weight|Decay|Calc|MaxAge)|Preemp
 
 ### 目的
 
-建立实时监控链路。Prometheus 在控制节点的本地系统盘保存 90 天数据；监控服务不成为 Slurm、SSH、驱动或作业的依赖。
+建立实时监控链路。Prometheus 在控制节点的本地系统盘保存最多 180 天数据；监控服务不成为 Slurm、SSH、驱动或作业的依赖。
 
 软件安装由管理员手工完成，Ansible 只管理配置和 systemd 服务。这样不会因为各主机 Ubuntu、内核和 NVIDIA 软件栈不同而触发不可控的软件升级。
 
@@ -1072,7 +1072,7 @@ sudo install --owner=root --group=root --mode=0755 \
 /usr/local/bin/promtool --version
 ```
 
-预期：两个程序显示 GitHub 当前稳定版本。Ansible 稍后创建 `/var/lib/prometheus` 并加入 `90d` 和 `100GB` 两个保留上限。
+预期：两个程序显示 GitHub 当前稳定版本。Ansible 稍后创建 `/var/lib/prometheus` 并加入 `180d` 和 `100GB` 两个保留上限。
 
 ### 阶段 4：在 A100 和 4070 安装 nvitop-exporter
 
@@ -1232,7 +1232,7 @@ grep '^epic_slurm_' /var/lib/node_exporter/textfile_collector/slurm_usage.prom
 sudo du --summarize --human-readable /var/lib/prometheus
 ```
 
-`up` 查询应有 12 个当前 targets：Prometheus 1、node 3、DCGM 2、nvitop 2、Slurm 4，值均为 `1`。Prometheus 的启动参数应包含 `90d`、`100GB` 和 `/var/lib/prometheus`。
+工作包 6 完成时，`up` 查询应有 12 个当前 targets：Prometheus 1、node 3、DCGM 2、nvitop 2、Slurm 4，值均为 `1`。工作包 7 加入 Grafana 自身采集后增加为 13 个。Prometheus 的启动参数应包含 `180d`、`100GB` 和 `/var/lib/prometheus`。
 
 以下 PromQL 可直接回答资源管理中的常见问题：
 
@@ -1276,57 +1276,162 @@ ansible-playbook playbooks/monitoring.yml
 - Prometheus 请求导致 slurmctld 调度周期明显变长；
 - 监控任务修改 GPU 可见性或 Slurm 作业约束；
 - Prometheus target 使用临时 IP，而不是 inventory 主机名；
-- `/var/lib/prometheus` 位于 NFS，或缺少 90 天/100GB 上限；
+- `/var/lib/prometheus` 位于 NFS，或缺少 180 天/100GB 上限；
 - 任一监控服务故障导致 Slurm、SSH、Fabric Manager 或已有作业停止。
 
 ## 12. 工作包 7：部署 Grafana 与基础仪表盘
 
 ### 目的
 
-为管理员和实验室成员提供低维护的可视化入口。Grafana 运行在控制节点，通过 provisioning 文件由 Ansible 管理。
+在控制节点部署 Grafana OSS，并提供面向实际使用场景的集群报表。Grafana 只展示信息，不提供作业取消、节点状态修改、告警或其他控制操作。管理员仍通过 Slurm 命令行处理具体事务。
 
-### 初始仪表盘
+Grafana 软件由管理员手工安装当前稳定版本。Ansible 只负责：
 
-只部署能稳定维护的四类仪表盘：
+- Grafana 基础配置和服务状态；
+- Prometheus 数据源；
+- 仪表盘文件夹和 provisioning；
+- 仓库中的三个 EPIC 正式仪表盘；
+- 上游仪表盘和少量社区参考仪表盘；
+- Prometheus 的 180 天保留期、Grafana 自身采集和低频 Slurm 记账报表。
 
-1. 集群概览：节点状态、队列长度、运行/等待作业；
-2. 主机详情：CPU、内存、磁盘和网络；
-3. GPU 详情：利用率、显存、温度、功耗和健康状态；
-4. Slurm 调度：分区作业、调度周期和 backfill 状态。
+Grafana 不直接查询 MariaDB 的 Slurm 内部表。低频采集器每 10 分钟通过 `sacct` 和 `sshare` 生成聚合指标，Prometheus 仍是 Grafana 唯一数据源。
 
-用户和 Account 的长期使用量以 SlurmDBD 为准。第一阶段先提供经过验证的 `sreport` 管理报表；只有明确需要在 Grafana 中展示后，再增加低频汇总采集器，不让 Grafana 直接依赖 MariaDB 内部表。
+### 仪表盘组织
+
+| 文件夹 | 用途 | 页面修改策略 |
+|---|---|---|
+| `Upstream` | nvitop 和 NVIDIA DCGM 等上游维护的原版仪表盘 | Ansible 管理，页面只读 |
+| `Community References` | Slurm Native OpenMetrics、Node Exporter、Prometheus 和 Grafana 社区样例 | 独立参考，不被正式仪表盘引用 |
+| `EPIC Operations` | EPIC 自己维护的三个场景仪表盘 | Ansible 管理，页面只读 |
+| `Experiments` | 临时查询、试验面板和新仪表盘 | 可在页面中自由新建和修改 |
+
+需要修改正式仪表盘时，先在 Grafana 中复制到 `Experiments`，完成试验后导出 Classic JSON，将 JSON 纳入仓库，再由 Ansible 发布。不要直接修改 provisioned dashboard；即使临时允许保存，下一次同步也会以仓库版本为准。
+
+三个正式仪表盘分别回答不同问题：
+
+- `Cluster Administration`：用户和 Account 使用量、Fair-share、排队情况、作业完成/失败/取消/超时比例、运行和等待时间等治理报表；
+- `Cluster Availability`：控制器、数据库、节点、GPU、exporter、磁盘和可选 NFS 当前是否可用；资源全部被占用属于繁忙，不属于故障；
+- `Cluster Overview`：把当前状态、近期趋势、调度、GPU、节点和记账摘要集中展示，实用和信息完整优先，不限制在一屏内。
+
+默认范围分别为 30 天、24 小时和 7 天。趋势图响应页面顶部的时间选择器，可以临时查看 Prometheus 中最长 180 天的数据。仪表盘不采集 JobID、命令或工作目录。
 
 ### 操作
 
-Grafana 使用官方稳定 APT 仓库，由 Ansible 管理软件源、数据源和仪表盘：
+#### 1. 手工安装当前 Grafana OSS
+
+在控制节点安装 Grafana 官方稳定 APT 仓库中的当前版本。以下操作只安装软件，不手工编辑 Grafana 配置；配置由下一步 Ansible 生成：
 
 ```bash
-# Preview Grafana installation and provisioned dashboards.
-cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
-ansible-playbook playbooks/monitoring.yml \
-  --check \
-  --diff \
-  --tags=grafana
+# Install the tools required by Grafana's signed APT repository.
+sudo apt update
+sudo apt install \
+  apt-transport-https \
+  software-properties-common \
+  wget \
+  gpg
 
-# Install Grafana and provision the Prometheus data source.
-ansible-playbook playbooks/monitoring.yml \
-  --tags=grafana
+# Install Grafana's repository signing key in the standard keyring path.
+sudo mkdir -p /etc/apt/keyrings
+wget -q -O - https://apt.grafana.com/gpg.key |
+  gpg --dearmor |
+  sudo tee /etc/apt/keyrings/grafana.gpg >/dev/null
+
+# Add the stable Grafana OSS package repository.
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" |
+  sudo tee /etc/apt/sources.list.d/grafana.list
+
+# Preview the selected package before changing the host.
+sudo apt update
+apt-cache policy grafana
+sudo apt-get --simulate install grafana
+
+# Install the current stable Grafana OSS package.
+sudo apt install grafana
+
+# Record the installed version. Ansible does not pin or upgrade it.
+grafana server --version 2>/dev/null || /usr/sbin/grafana-server -v
 ```
+
+如果控制节点曾安装无效的旧 Grafana，应先使用 APT 删除旧包及确认不再需要的 `/etc/grafana`、`/var/lib/grafana` 内容。本工作包不为旧监控配置制作备份。
+
+#### 2. 由 Ansible 配置 Grafana
+
+先配置并启动 Grafana。上游和社区仪表盘在首次运行时从声明的来源下载；以后不会在每次运行中自动追随远端变化。
+
+```bash
+# Validate the Grafana playbook without changing the controller.
+cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
+ansible-playbook playbooks/grafana.yml --syntax-check
+
+# Preview local configuration, provisioning, and dashboard changes.
+ansible-playbook playbooks/grafana.yml --check --diff
+
+# Apply the Grafana configuration and start the package-provided service.
+ansible-playbook playbooks/grafana.yml
+```
+
+下载列表包括：
+
+- nvitop exporter 上游 dashboard；
+- NVIDIA DCGM exporter 上游 dashboard；
+- Prometheus Stats 上游 dashboard；
+- Grafana Internal Metrics 上游 dashboard；
+- Slurm Native OpenMetrics `24979`；
+- Node Exporter Full `1860`；
+- Grafana Internal Stats `20138`。
+
+DCGM 上游仪表盘以 Kubernetes 部署为主要场景，部分容器或 Pod 面板在当前裸机部署中没有数据是正常现象。它保持原版，仅作为 GPU 参数下钻和设计参考；EPIC 正式仪表盘只使用当前裸机实际存在的指标。
+
+#### 3. 更新 Prometheus 和 Slurm 报表采集
+
+Grafana 已启动后再重新运行 monitoring playbook。该步骤会把 Grafana 加入 Prometheus targets，把保留期改为 180 天，并安装 10 分钟一次的记账报表采集器：
+
+```bash
+# Preview the retention, target, and collector changes.
+ansible-playbook playbooks/monitoring.yml --check --diff
+
+# Apply the updated Prometheus configuration and report collector.
+ansible-playbook playbooks/monitoring.yml
+```
+
+现有 2 分钟采集器继续负责当前作业、等待原因和 GPU 分配；新增 10 分钟采集器负责：
+
+- 完成、失败、取消和超时作业数量；
+- GPU 分配秒数；
+- 作业运行时间和排队时间 histogram；
+- 5 分钟以内的短作业数量；
+- Account 和用户的 Fair-share、shares 与 normalized usage。
+
+累计记账指标从 `monitoring_slurm_accounting_start_time` 开始。这个起点不得在日常运行中向后滚动，否则 Prometheus counter 会重置。Prometheus 只保留最近 180 天的采样，早于保留期的详细作业仍由 SlurmDBD 保存，并通过 `sacct`/`sreport` 查询。
+
+#### 4. 首次登录
+
+访问：
+
+```text
+http://epic-cluster-controller-01:3000/
+```
+
+首次初始化使用用户名 `administrator`。如果 Grafana 提示使用初始密码，则使用软件包默认初始密码登录并立即设置实验室管理密码。该密码只属于 Grafana，不是 Linux、SSH 或未来 OOD 的密码。
 
 ### 预期结果
 
 - Grafana 服务启用并运行；
 - Prometheus 数据源由文件自动创建，不需要网页中手工重复配置；
-- 四类基础仪表盘均能加载数据；
-- 重新运行 playbook 不会覆盖管理员未纳入 Ansible 的独立实验仪表盘；
+- `Upstream`、`Community References`、`EPIC Operations` 和 `Experiments` 四个文件夹存在；
+- 三个 EPIC 正式仪表盘能够打开；尚未产生历史样本的面板会随采集逐步出现数据；
+- `Experiments` 中由管理员创建的仪表盘不被 Ansible 覆盖；
+- Prometheus 新增 Grafana target，启动参数包含 `180d` 和 `100GB`；
+- 两个 Slurm 采集 timer 分别每 2 分钟和 10 分钟运行；
 - OOD 的 Grafana 链接后续只需指向该固定服务地址。
 
 ### 停止条件
 
-- 仪表盘依赖未固定版本或无人维护的第三方 exporter；
+- Grafana playbook 尝试通过 APT 安装或升级软件；
 - Grafana 直接读写 SlurmDBD 内部表；
 - 监控部署改变 Slurm 调度或现有作业；
-- 仪表盘无数据却继续部署 OOD 链接。
+- 正式仪表盘出现告警、作业控制或节点控制功能；
+- 社区参考仪表盘被正式仪表盘引用，或因为参考样例无数据而阻塞 EPIC 仪表盘部署。
 
 ## 13. 工作包 8：接入 OOD
 
@@ -1440,7 +1545,7 @@ sprio
 - Fair-share 同时体现个人近期用量和组织层用量；
 - 没有累计用量额度、QoS 资源限制、抢占或未经声明的并发限制；
 - Prometheus 所有预期 targets 为 `UP`；
-- Grafana 四类基础仪表盘有数据；
+- Grafana 三个 EPIC 场景仪表盘能够加载当前已有指标；
 - SlurmDBD、Prometheus、Grafana 任一单独停止时，不会导致本地 Home、普通 SSH 或已经运行的本地进程失效。
 
 ## 18. 参考资料

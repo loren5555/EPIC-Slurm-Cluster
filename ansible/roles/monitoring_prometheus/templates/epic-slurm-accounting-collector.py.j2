@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""Export bounded Slurm accounting summaries for the EPIC Grafana reports."""
+
+from __future__ import annotations
+
+import argparse
+import math
+import os
+import subprocess
+import tempfile
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+
+
+SACCT = "/usr/bin/sacct"
+SSHARE = "/usr/bin/sshare"
+TERMINAL_STATES = {"COMPLETED", "FAILED", "CANCELLED", "TIMEOUT"}
+HISTOGRAM_BUCKETS = (60, 300, 900, 3600, 21600, 86400, 259200, 604800, 1209600)
+
+
+def run_command(arguments: list[str]) -> str:
+    """Run one Slurm query and return its complete standard output."""
+
+    completed = subprocess.run(
+        arguments,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return completed.stdout
+
+
+def normalized_label(value: str) -> str:
+    """Keep empty Slurm fields explicit without inventing high-cardinality labels."""
+
+    return value.strip() or "unknown"
+
+
+def normalized_state(value: str) -> str:
+    """Remove state suffixes such as CANCELLED by an administrator."""
+
+    return value.split(maxsplit=1)[0].split("+", maxsplit=1)[0].upper()
+
+
+def label_key(**labels: str) -> tuple[tuple[str, str], ...]:
+    """Create a stable and hashable Prometheus label set."""
+
+    return tuple(sorted(labels.items()))
+
+
+def escape_label(value: str) -> str:
+    """Escape one Prometheus text-format label value."""
+
+    return value.replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
+
+
+def render_labels(labels: tuple[tuple[str, str], ...]) -> str:
+    """Render a normalized label tuple for Prometheus text format."""
+
+    if not labels:
+        return ""
+    content = ",".join(f'{name}="{escape_label(value)}"' for name, value in labels)
+    return "{" + content + "}"
+
+
+def render_family(
+    name: str,
+    help_text: str,
+    metric_type: str,
+    values: dict[tuple[tuple[str, str], ...], float],
+) -> list[str]:
+    """Render one scalar metric family."""
+
+    lines = [f"# HELP {name} {help_text}", f"# TYPE {name} {metric_type}"]
+    for labels, value in sorted(values.items()):
+        lines.append(f"{name}{render_labels(labels)} {value:g}")
+    return lines
+
+
+def parse_timestamp(value: str) -> datetime | None:
+    """Parse sacct's local ISO timestamp, returning None for unknown times."""
+
+    value = value.strip()
+    if not value or value in {"Unknown", "None"}:
+        return None
+    return datetime.fromisoformat(value)
+
+
+def parse_number(value: str) -> float:
+    """Parse a numeric Slurm field while treating empty values as zero."""
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def gpu_count_from_tres(tres: str) -> float:
+    """Return the generic GPU count without double-counting typed GRES entries."""
+
+    generic_count = None
+    typed_count = 0.0
+    for item in tres.split(","):
+        key, separator, value = item.partition("=")
+        if not separator:
+            continue
+        if key == "gres/gpu":
+            generic_count = parse_number(value)
+        elif key.startswith("gres/gpu:"):
+            typed_count += parse_number(value)
+    return generic_count if generic_count is not None else typed_count
+
+
+def histogram_key(labels: tuple[tuple[str, str], ...], upper_bound: str) -> tuple:
+    """Add a Prometheus histogram upper-bound label to a base label set."""
+
+    return tuple(sorted((*labels, ("le", upper_bound))))
+
+
+def observe_histogram(histogram: dict, labels: tuple, value: float) -> None:
+    """Add one observation to cumulative Prometheus histogram buckets."""
+
+    histogram["count"][labels] += 1
+    histogram["sum"][labels] += value
+    for upper_bound in HISTOGRAM_BUCKETS:
+        if value <= upper_bound:
+            histogram["buckets"][histogram_key(labels, str(upper_bound))] += 1
+    histogram["buckets"][histogram_key(labels, "+Inf")] += 1
+
+
+def render_histogram(name: str, help_text: str, histogram: dict) -> list[str]:
+    """Render one cumulative histogram family."""
+
+    lines = [f"# HELP {name} {help_text}", f"# TYPE {name} histogram"]
+    for labels, value in sorted(histogram["buckets"].items()):
+        lines.append(f"{name}_bucket{render_labels(labels)} {value:g}")
+    for suffix in ("sum", "count"):
+        for labels, value in sorted(histogram[suffix].items()):
+            lines.append(f"{name}_{suffix}{render_labels(labels)} {value:g}")
+    return lines
+
+
+def empty_histogram() -> dict:
+    """Create accumulators for one Prometheus histogram."""
+
+    return {
+        "buckets": defaultdict(float),
+        "count": defaultdict(float),
+        "sum": defaultdict(float),
+    }
+
+
+def collect_accounting(cluster: str, start_time: str) -> dict:
+    """Aggregate completed allocation records from a stable accounting origin."""
+
+    output = run_command(
+        [
+            SACCT,
+            "--clusters",
+            cluster,
+            "--allusers",
+            "--allocations",
+            "--starttime",
+            start_time,
+            "--endtime",
+            "now",
+            "--noheader",
+            "--parsable2",
+            "--format=User,Account,Partition,State,Submit,Start,ElapsedRaw,AllocTRES",
+        ]
+    )
+
+    metrics = {
+        "jobs": defaultdict(float),
+        "gpu_seconds": defaultdict(float),
+        "short_jobs": defaultdict(float),
+        "elapsed": empty_histogram(),
+        "queue": empty_histogram(),
+    }
+
+    for line in output.splitlines():
+        columns = line.rstrip("|").split("|")
+        if len(columns) != 8:
+            continue
+
+        user, account, partition, state_text, submit_text, start_text, elapsed_text, tres = columns
+        state = normalized_state(state_text)
+        if not user or state not in TERMINAL_STATES:
+            continue
+
+        labels = label_key(
+            account=normalized_label(account),
+            partition=normalized_label(partition),
+            state=state,
+            user=normalized_label(user),
+        )
+        metrics["jobs"][labels] += 1
+
+        elapsed_seconds = max(0.0, parse_number(elapsed_text))
+        allocated_gpus = gpu_count_from_tres(tres)
+        metrics["gpu_seconds"][labels] += elapsed_seconds * allocated_gpus
+        if elapsed_seconds <= 300:
+            metrics["short_jobs"][labels] += 1
+
+        aggregate_labels = label_key(
+            account=normalized_label(account),
+            partition=normalized_label(partition),
+            state=state,
+        )
+        observe_histogram(metrics["elapsed"], aggregate_labels, elapsed_seconds)
+
+        submit_time = parse_timestamp(submit_text)
+        start_time_value = parse_timestamp(start_text)
+        if submit_time and start_time_value:
+            queue_seconds = max(0.0, (start_time_value - submit_time).total_seconds())
+            observe_histogram(metrics["queue"], aggregate_labels, queue_seconds)
+
+    return metrics
+
+
+def collect_fairshare(cluster: str) -> dict[str, dict]:
+    """Collect the current Fair Tree inputs reported by sshare."""
+
+    output = run_command(
+        [
+            SSHARE,
+            "--clusters",
+            cluster,
+            "--all",
+            "--noheader",
+            "--parsable2",
+            "--format=Account,User,RawShares,NormShares,RawUsage,NormUsage,EffectvUsage,FairShare",
+        ]
+    )
+    metrics = {
+        "raw_shares": defaultdict(float),
+        "normalized_shares": defaultdict(float),
+        "raw_usage": defaultdict(float),
+        "normalized_usage": defaultdict(float),
+        "effective_usage": defaultdict(float),
+        "fairshare": defaultdict(float),
+    }
+
+    for line in output.splitlines():
+        columns = line.rstrip("|").split("|")
+        if len(columns) != 8:
+            continue
+        account, user, raw_shares, norm_shares, raw_usage, norm_usage, effective_usage, fairshare = columns
+        labels = label_key(
+            account=normalized_label(account),
+            user=normalized_label(user),
+        )
+        values = (
+            ("raw_shares", raw_shares),
+            ("normalized_shares", norm_shares),
+            ("raw_usage", raw_usage),
+            ("normalized_usage", norm_usage),
+            ("effective_usage", effective_usage),
+            ("fairshare", fairshare),
+        )
+        for name, value in values:
+            number = parse_number(value)
+            if math.isfinite(number):
+                metrics[name][labels] = number
+    return metrics
+
+
+def build_metrics(now: datetime, cluster: str, start_time: str) -> str:
+    """Build the complete accounting textfile after every query succeeds."""
+
+    accounting = collect_accounting(cluster, start_time)
+    fairshare = collect_fairshare(cluster)
+    lines: list[str] = []
+
+    scalar_families = (
+        (
+            "epic_slurm_accounting_jobs_total",
+            "Terminal Slurm jobs recorded since the accounting origin.",
+            "counter",
+            accounting["jobs"],
+        ),
+        (
+            "epic_slurm_accounting_gpu_allocated_seconds_total",
+            "Allocated GPU seconds recorded since the accounting origin.",
+            "counter",
+            accounting["gpu_seconds"],
+        ),
+        (
+            "epic_slurm_short_jobs_total",
+            "Terminal jobs with an elapsed time no greater than five minutes.",
+            "counter",
+            accounting["short_jobs"],
+        ),
+        ("epic_slurm_raw_shares", "Raw association shares.", "gauge", fairshare["raw_shares"]),
+        (
+            "epic_slurm_normalized_shares",
+            "Normalized association shares.",
+            "gauge",
+            fairshare["normalized_shares"],
+        ),
+        ("epic_slurm_raw_usage", "Raw association usage.", "gauge", fairshare["raw_usage"]),
+        (
+            "epic_slurm_normalized_usage",
+            "Normalized association usage.",
+            "gauge",
+            fairshare["normalized_usage"],
+        ),
+        (
+            "epic_slurm_effective_usage",
+            "Effective association usage.",
+            "gauge",
+            fairshare["effective_usage"],
+        ),
+        ("epic_slurm_fairshare", "Current association fair-share factor.", "gauge", fairshare["fairshare"]),
+        (
+            "epic_slurm_accounting_collector_last_success_unixtime",
+            "Unix time of the last successful accounting collection.",
+            "gauge",
+            {label_key(): now.timestamp()},
+        ),
+    )
+    for name, help_text, metric_type, values in scalar_families:
+        lines.extend(render_family(name, help_text, metric_type, values))
+
+    lines.extend(
+        render_histogram(
+            "epic_slurm_job_elapsed_seconds",
+            "Elapsed time of terminal Slurm jobs.",
+            accounting["elapsed"],
+        )
+    )
+    lines.extend(
+        render_histogram(
+            "epic_slurm_job_queue_seconds",
+            "Time between job submission and start.",
+            accounting["queue"],
+        )
+    )
+    return "\n".join(lines) + "\n"
+
+
+def atomic_write(output_path: Path, content: str) -> None:
+    """Replace the metrics file only after all SlurmDBD queries succeed."""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=output_path.parent,
+        prefix=f".{output_path.name}.",
+        delete=False,
+    ) as temporary_file:
+        temporary_path = Path(temporary_file.name)
+        temporary_file.write(content)
+    os.chmod(temporary_path, 0o644)
+    os.replace(temporary_path, output_path)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cluster", required=True)
+    parser.add_argument("--start-time", required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    arguments = parser.parse_args()
+
+    now = datetime.now().astimezone()
+    atomic_write(
+        arguments.output,
+        build_metrics(now, arguments.cluster, arguments.start_time),
+    )
+
+
+if __name__ == "__main__":
+    main()

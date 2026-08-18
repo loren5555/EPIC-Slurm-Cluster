@@ -1,0 +1,13 @@
+# This file is managed by Ansible.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: epic-prometheus
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:{{ monitoring_prometheus_port }}
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: {{ monitoring_fast_scrape_interval }}

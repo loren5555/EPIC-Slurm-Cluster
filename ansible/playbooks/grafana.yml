@@ -1,0 +1,9 @@
+---
+# Grafana packages are installed manually. This play only manages the local
+# service configuration, Prometheus data source, and dashboard files.
+- name: Configure Grafana on the active controller
+  hosts: controllers
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - monitoring_grafana

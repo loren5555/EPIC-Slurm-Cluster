@@ -80,6 +80,15 @@
     mode: "0755"
   notify: Refresh Slurm usage collector
 
+- name: Install the Slurm accounting report collector
+  ansible.builtin.template:
+    src: epic-slurm-accounting-collector.py.j2
+    dest: "{{ monitoring_slurm_accounting_collector_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Refresh Slurm accounting collector
+
 - name: Install the Slurm usage collector systemd units
   ansible.builtin.template:
     src: "{{ item }}.j2"
@@ -91,6 +100,18 @@
     - epic-slurm-usage-collector.service
     - epic-slurm-usage-collector.timer
   notify: Refresh Slurm usage collector
+
+- name: Install the Slurm accounting collector systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - epic-slurm-accounting-collector.service
+    - epic-slurm-accounting-collector.timer
+  notify: Refresh Slurm accounting collector
 
 - name: Validate the installed Prometheus configuration
   ansible.builtin.command:
@@ -117,6 +138,13 @@
 - name: Keep the Slurm usage collector timer enabled and running
   ansible.builtin.systemd_service:
     name: epic-slurm-usage-collector.timer
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Keep the Slurm accounting collector timer enabled and running
+  ansible.builtin.systemd_service:
+    name: epic-slurm-accounting-collector.timer
     enabled: true
     state: started
   when: not ansible_check_mode

@@ -1,0 +1,192 @@
+{
+  "annotations": {"list": []},
+  "description": "Current service, scheduling, node, and hardware availability without control actions or alerts.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Prometheus targets that currently respond successfully.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(up)", "instant": true, "refId": "A"}],
+      "title": "Healthy Targets",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Prometheus targets that are currently unreachable.",
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 4, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "count(up == 0) or vector(0)", "instant": true, "refId": "A"}],
+      "title": "Unavailable Targets",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Nodes currently registered with Slurm.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 8, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "slurm_nodes", "instant": true, "refId": "A"}],
+      "title": "Slurm Nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Idle nodes. Fully allocated nodes remain healthy and are shown as busy elsewhere.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 12, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "slurm_nodes_idle", "instant": true, "refId": "A"}],
+      "title": "Idle Nodes",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Configured GPUs that Slurm has not allocated.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 16, "y": 0},
+      "id": 5,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "sum(epic_slurm_node_gpus_available)", "instant": true, "refId": "A"}],
+      "title": "Available GPUs",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Age of the newest successful fast Slurm usage collection.",
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 0},
+      "id": 6,
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "time() - epic_slurm_usage_collector_last_success_unixtime", "instant": true, "refId": "A"}],
+      "title": "Usage Data Age",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Every expected scrape endpoint. Busy resources still report UP.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 5},
+      "id": 7,
+      "options": {"cellHeight": "sm", "showHeader": true},
+      "targets": [{"expr": "up", "format": "table", "instant": true, "refId": "A"}],
+      "title": "Exporter and Service Targets",
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Key systemd services visible through node exporter.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 5},
+      "id": 8,
+      "options": {"cellHeight": "sm", "showHeader": true},
+      "targets": [{"expr": "node_systemd_unit_state{name=~\"slurmctld.service|slurmdbd.service|slurmd.service|mariadb.service|munge.service|prometheus.service|grafana-server.service\",state=\"active\"}", "format": "table", "instant": true, "refId": "A"}],
+      "title": "Core Service State",
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Slurm node state trends. Allocated nodes are busy, not failed.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+      "id": 9,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {"expr": "slurm_nodes_idle", "legendFormat": "idle", "refId": "A"},
+        {"expr": "slurm_nodes_alloc", "legendFormat": "allocated", "refId": "B"},
+        {"expr": "slurm_nodes_down", "legendFormat": "down", "refId": "C"}
+      ],
+      "title": "Node Availability State",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Configured, allocated, and immediately available GPUs by node.",
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+      "id": 10,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {"expr": "epic_slurm_node_gpus_configured", "legendFormat": "{{node}} configured", "refId": "A"},
+        {"expr": "epic_slurm_node_gpus_allocated", "legendFormat": "{{node}} allocated", "refId": "B"},
+        {"expr": "epic_slurm_node_gpus_available", "legendFormat": "{{node}} available", "refId": "C"}
+      ],
+      "title": "GPU Scheduling Availability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "GPU temperature summary. Use the upstream DCGM or nvitop dashboard for device-level diagnosis.",
+      "fieldConfig": {"defaults": {"unit": "celsius"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 23},
+      "id": 11,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "max by (instance, gpu) (DCGM_FI_DEV_GPU_TEMP)", "legendFormat": "{{instance}} GPU {{gpu}}", "refId": "A"}],
+      "title": "GPU Temperature",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Maximum reported XID code in the selected range. Zero means no reported XID error.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 23},
+      "id": 12,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "max_over_time(DCGM_FI_DEV_XID_ERRORS[$__interval])", "legendFormat": "{{instance}} GPU {{gpu}}", "refId": "A"}],
+      "title": "GPU XID Reports",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Local filesystem free space. Optional NFS mounts are reported separately and do not determine cluster availability.",
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 31},
+      "id": 13,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs|nfs.*\"}", "legendFormat": "{{instance}} {{mountpoint}}", "refId": "A"}],
+      "title": "Local Filesystem Free Space",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Available memory by host.",
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 31},
+      "id": 14,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "node_memory_MemAvailable_bytes", "legendFormat": "{{instance}}", "refId": "A"}],
+      "title": "Available Memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "epic-prometheus"},
+      "description": "Optional NFS mounts currently visible to node exporter. Absence is degraded storage, not a Slurm failure.",
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 40},
+      "id": 15,
+      "options": {"cellHeight": "sm", "showHeader": true},
+      "targets": [{"expr": "node_filesystem_avail_bytes{fstype=~\"nfs.*\"}", "format": "table", "instant": true, "refId": "A"}],
+      "title": "Optional NFS Visibility",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": ["epic", "operations", "availability"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Cluster Availability",
+  "uid": "epic-cluster-availability",
+  "version": 1
+}

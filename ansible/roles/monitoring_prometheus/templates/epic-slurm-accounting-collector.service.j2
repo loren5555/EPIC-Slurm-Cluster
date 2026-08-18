@@ -1,0 +1,11 @@
+[Unit]
+Description=EPIC Slurm accounting report collector
+After=slurmdbd.service node_exporter.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart={{ monitoring_slurm_accounting_collector_path }} \
+    --cluster {{ slurm_cluster_name }} \
+    --start-time {{ monitoring_slurm_accounting_start_time }} \
+    --output {{ monitoring_slurm_accounting_output_file }}
