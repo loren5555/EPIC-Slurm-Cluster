@@ -58,7 +58,7 @@ class OODRoleTests(unittest.TestCase):
         site = read_ansible_file("playbooks/site.yml")
 
         for policy in (
-            "ood_server_address: 10.17.207.105",
+            "ood_server_address: epic-cluster-controller-01",
             "ood_shared_root: /srv/epic/ood",
             "ood_interactive_maximum_hours: 32",
             "ood_session_retention_days: 30",
@@ -96,7 +96,7 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("servername: \"{{ ood_server_address }}\"", portal)
         self.assertIn("host_regex:", portal)
         self.assertIn("subjectAltName", tls)
-        self.assertIn("IP.1 = {{ ood_server_address }}", tls)
+        self.assertIn("DNS.1 = {{ ood_server_address }}", tls)
 
         self.assertIn('adapter: "slurm"', cluster)
         self.assertIn('submit_host: "{{ slurm_controller_host }}"', cluster)
@@ -136,6 +136,7 @@ class OODRoleTests(unittest.TestCase):
         tasks = read_ansible_file("roles/ood_apps/tasks/main.yml")
         partitions = read_ansible_file("roles/ood_apps/templates/partitions.yml.j2")
         rclone = read_ansible_file("roles/ood_apps/templates/rclone-remotes.ini.j2")
+        grafana = read_repository_file("apps/LINK_grafana/manifest.yml")
         a100 = read_ansible_file("inventory/host_vars/epic-cluster-compute-a100-01.yml")
         rtx4070 = read_ansible_file("inventory/host_vars/epic-cluster-compute-rtx4070-01.yml")
 
@@ -152,6 +153,10 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("epic_cluster_ed25519", rclone)
         self.assertIn("ood_display_name", a100)
         self.assertIn("ood_display_name", rtx4070)
+
+        self.assertNotIn("ansible.builtin.lineinfile", tasks)
+        self.assertNotIn("item != 'LINK_grafana'", tasks)
+        self.assertIn("url: http://epic-cluster-controller-01:3000", grafana)
 
     def test_prometheus_collects_the_ood_exporter_at_the_slow_interval(self) -> None:
         variables = read_ansible_file("inventory/group_vars/all/monitoring.yml")

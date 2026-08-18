@@ -86,7 +86,7 @@
     path: "{{ ood_tls_directory }}/ood.crt"
   register: ood_certificate
 
-- name: Generate the IP certificate when absent or reconfigured
+- name: Generate the portal certificate when absent or reconfigured
   ansible.builtin.command:
     argv:
       - /usr/bin/openssl

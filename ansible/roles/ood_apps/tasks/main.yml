@@ -52,14 +52,6 @@
   loop: "{{ ood_system_applications }}"
   notify: Restart all user PUNs
 
-- name: Point the Grafana catalog entry at the current controller address
-  ansible.builtin.lineinfile:
-    path: "{{ ood_application_deploy_root }}/LINK_grafana/manifest.yml"
-    regexp: '^url:'
-    line: "url: http://{{ ood_server_address }}:{{ monitoring_grafana_port }}"
-  notify: Restart all user PUNs
-  when: not ansible_check_mode
-
 - name: Link published applications into the OOD system catalog
   ansible.builtin.file:
     src: "{{ ood_application_deploy_root }}/{{ item }}"

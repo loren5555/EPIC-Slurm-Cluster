@@ -1440,7 +1440,7 @@ http://epic-cluster-controller-01:3000/
 
 ### 13.1 最终结构
 
-- 用户通过 `https://控制节点校园网IP/` 登录，使用 OOD 独立密码；
+- 用户通过 `https://epic-cluster-controller-01/` 登录，使用 OOD 独立密码；客户端必须通过 DNS 或本机 hosts 将该名称解析到当前可访问的控制节点 IP；
 - OOD 密码与 Linux/SSH 密码无关，在线文件为 `/etc/ood/auth/htpasswd`；
 - 控制节点通过本机 Slurm 客户端提交作业，不依赖 SSH 密钥；
 - IAPP 上下文统一存放在 `/srv/epic/ood/users/<用户>/ondemand/data`；
@@ -1449,6 +1449,7 @@ http://epic-cluster-controller-01:3000/
 - JupyterLab、Code Server、ttyd、TensorBoard 和 Script 都通过 Slurm 启动，最长 32 小时；普通批处理仍允许 14 天；
 - 表单只提供主机、CPU、GPU、内存、时长、工作目录和应用参数。高级 Slurm 参数由 `Additional sbatch arguments` 原样传入，最终权限仍由 Slurm Association/QoS 约束；
 - Grafana 作为 OOD 导航入口；Prometheus 不直接暴露在 OOD 菜单中。
+- OOD 中的 Grafana 入口固定使用 `epic-cluster-controller-01:3000`。访问 OOD 的客户端必须通过 DNS 或本机 hosts 将 `epic-cluster-controller-01` 解析到当前可访问的控制节点 IP；只修改集群节点的 `/etc/hosts` 对用户浏览器无效。
 
 ### 13.2 控制节点手工安装
 
@@ -1534,7 +1535,7 @@ ansible-vault encrypt ansible/vars/ood_htpasswd.vault
 
 ### 13.5 检查清单并应用配置
 
-确认 `ansible/inventory/group_vars/all/ood.yml` 中的 `ood_server_address` 是控制节点当前校园网 IP；确认每个计算节点 host vars 有易读的 `ood_display_name`。主机菜单与权限从 `slurm_partitions.yml`、`users.yml` 和 host vars 自动生成，不再维护第二份列表。
+确认 `ansible/inventory/group_vars/all/ood.yml` 中的 `ood_server_address` 是约定的控制节点主机名，并确认访问 OOD 的客户端能够解析该名称；确认每个计算节点 host vars 有易读的 `ood_display_name`。主机菜单与权限从 `slurm_partitions.yml`、`users.yml` 和 host vars 自动生成，不再维护第二份列表。
 
 ```bash
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
@@ -1546,7 +1547,7 @@ ansible-playbook playbooks/monitoring.yml
 
 该流程会完成以下工作：
 
-1. 生成自签名 IP 证书和 Basic Auth 门户；
+1. 生成包含控制节点 DNS 名称的自签名证书和 Basic Auth 门户；
 2. 生成本地 Slurm 适配器及 OOD 页面配置；
 3. 建立 `/srv/epic/ood` 用户上下文并导出给计算节点；
 4. 在计算节点启用按需 NFS 挂载；
@@ -1575,7 +1576,7 @@ curl --silent http://127.0.0.1:9301/metrics | head
 ### 13.7 日常修改规则
 
 - 改密码：只运行 `htpasswd`；
-- 改控制节点 IP：修改 `ood_server_address` 后重新运行 `ood.yml`；
+- 改控制节点 IP：保持 `ood_server_address` 不变，只更新客户端 DNS 或 hosts 中 `epic-cluster-controller-01` 的地址；
 - 改用户可见主机：修改 Slurm 分区授权/Association 相关清单，然后运行 Association 与 OOD playbook；
 - 改 IAPP：修改仓库中的 `apps/IAPP_*`，再运行 `ood.yml`；
 - 新增计算节点：先按运行环境文档安装程序，再加入 inventory、Slurm 分区与用户 `ssh_access`，最后运行 `ood.yml`；

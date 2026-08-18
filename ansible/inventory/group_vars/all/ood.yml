@@ -1,7 +1,7 @@
 ---
-# Users reach the portal through the controller's current campus-network IP.
-# Update this value and rerun ood.yml when that address changes.
-ood_server_address: 10.17.207.105
+# Users reach the portal through this stable controller hostname. Each client
+# must resolve it through DNS or a local hosts entry.
+ood_server_address: epic-cluster-controller-01
 
 # Batch Connect and Job Composer exchange their context through this one small
 # NFS export. User homes and Slurm state remain local to each host.
