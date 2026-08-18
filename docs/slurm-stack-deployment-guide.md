@@ -1356,7 +1356,7 @@ grafana server --version 2>/dev/null || /usr/sbin/grafana-server -v
 
 #### 2. 由 Ansible 配置 Grafana
 
-先配置并启动 Grafana。上游和社区仪表盘在首次运行时从声明的来源下载；以后不会在每次运行中自动追随远端变化。
+先配置并启动 Grafana。上游和社区仪表盘在首次正式运行时从声明的来源下载；检查模式不访问外部下载地址，避免 Grafana.com 不支持 `HEAD` 请求而产生 405。正式运行时的下载为可选操作：控制节点无法访问 GitHub 或 Grafana.com 时只输出说明，不阻塞三个 EPIC 正式仪表盘和 Grafana 服务；网络恢复后重新运行 playbook 即可补齐。已经下载的文件不会在每次运行中自动追随远端变化。
 
 ```bash
 # Validate the Grafana playbook without changing the controller.

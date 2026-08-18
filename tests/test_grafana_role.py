@@ -54,6 +54,15 @@ class GrafanaRoleTests(unittest.TestCase):
         ):
             self.assertNotIn(installer, tasks)
 
+    def test_external_reference_downloads_do_not_block_core_dashboards(self) -> None:
+        tasks = read_ansible_file("roles/monitoring_grafana/tasks/main.yml")
+
+        self.assertIn("timeout: 15", tasks)
+        self.assertIn("failed_when: false", tasks)
+        self.assertIn("when: not ansible_check_mode", tasks)
+        self.assertIn("Report unavailable optional dashboards", tasks)
+        self.assertIn("item.path", tasks)
+
     def test_provisioning_separates_managed_and_experimental_dashboards(self) -> None:
         datasource = read_ansible_file(
             "roles/monitoring_grafana/templates/prometheus-datasource.yml.j2"

@@ -72,9 +72,13 @@
     group: grafana
     mode: "0644"
     force: false
+    timeout: 15
   loop: "{{ monitoring_grafana_upstream_dashboards }}"
   loop_control:
     label: "{{ item.name }}"
+  register: monitoring_grafana_upstream_downloads
+  failed_when: false
+  when: not ansible_check_mode
   notify: Restart Grafana
 
 - name: Download reviewed community reference dashboards once
@@ -85,23 +89,55 @@
     group: grafana
     mode: "0644"
     force: false
+    timeout: 15
   loop: "{{ monitoring_grafana_community_dashboards }}"
   loop_control:
     label: "{{ item.name }}"
+  register: monitoring_grafana_community_downloads
+  failed_when: false
+  when: not ansible_check_mode
   notify: Restart Grafana
+
+- name: Report unavailable optional dashboards
+  ansible.builtin.debug:
+    msg: >-
+      Optional dashboard {{ item.item.name }} was not downloaded:
+      {{ item.msg | default('remote server did not return a dashboard') }}.
+      The EPIC operations dashboards are unaffected; rerun this playbook when
+      the controller can reach the source.
+  loop: >-
+    {{
+      (monitoring_grafana_upstream_downloads.results | default([]))
+      + (monitoring_grafana_community_downloads.results | default([]))
+    }}
+  loop_control:
+    label: "{{ item.item.name }}"
+  when:
+    - not ansible_check_mode
+    - >-
+      'Connection failure' in (item.msg | default(''))
+      or 'Request failed' in (item.msg | default(''))
+      or (item.status_code | default(200) | int) >= 400
+
+- name: Locate the downloaded optional dashboard files
+  ansible.builtin.find:
+    paths:
+      - "{{ monitoring_grafana_dashboard_directory }}/upstream"
+      - "{{ monitoring_grafana_dashboard_directory }}/community-references"
+    patterns: "*.json"
+    recurse: false
+    file_type: file
+  register: monitoring_grafana_downloaded_dashboard_files
+  when: not ansible_check_mode
 
 - name: Bind downloaded dashboard data-source placeholders to Prometheus
   ansible.builtin.replace:
-    path: >-
-      {{ monitoring_grafana_dashboard_directory }}/{{
-        'upstream' if item in monitoring_grafana_upstream_dashboards
-        else 'community-references'
-      }}/{{ item.filename }}
+    path: "{{ item.path }}"
     regexp: '\$\{DS_PROMETHEUS\}'
     replace: Prometheus
-  loop: "{{ monitoring_grafana_upstream_dashboards + monitoring_grafana_community_dashboards }}"
+  loop: "{{ monitoring_grafana_downloaded_dashboard_files.files | default([]) }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.path | basename }}"
   when: not ansible_check_mode
   notify: Restart Grafana
 
