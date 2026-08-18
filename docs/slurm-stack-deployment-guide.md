@@ -1143,7 +1143,6 @@ Ansible 在 `slurm.conf` 加入：
 
 ```ini
 MetricsType=metrics/openmetrics
-MetricsParameters=ignore_private_data
 ```
 
 ```bash

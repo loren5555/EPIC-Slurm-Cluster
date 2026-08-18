@@ -59,7 +59,6 @@ JobAcctGatherFrequency=30
 # Bounded internal metrics for Prometheus. Historical per-user reporting stays
 # in SlurmDBD instead of the high-cardinality jobs-users-accts endpoint.
 MetricsType=metrics/openmetrics
-MetricsParameters=ignore_private_data
 
 # Compute nodes
 {% for node_name in groups['compute_nodes'] | sort %}

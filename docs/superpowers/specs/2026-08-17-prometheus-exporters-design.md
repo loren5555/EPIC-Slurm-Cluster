@@ -88,10 +88,9 @@ activity. DCGM and nvitop remain the sources for utilization and process
 activity. If a collection fails, the previous textfile remains in place and a
 last-success timestamp makes stale data visible.
 
-The Slurm metrics plugin uses `MetricsParameters=ignore_private_data`. This
-keeps the small internal deployment free from persistent JWT management. It is
-acceptable because the controller and exporter ports are intended only for the
-laboratory network.
+The cluster does not set `PrivateData`, so Slurm 25.11 can expose the metrics
+endpoints without adding the later metrics-authentication parameters. The
+controller and exporter ports remain intended only for the laboratory network.
 
 ## 5. Storage
 
