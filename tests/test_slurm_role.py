@@ -88,11 +88,11 @@ class SlurmRoleTests(unittest.TestCase):
         for setting in forbidden_settings:
             self.assertNotIn(setting, template)
 
-    def test_slurm_exposes_bounded_internal_openmetrics(self) -> None:
+    def test_slurm_25_11_exposes_openmetrics_without_newer_auth_options(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
 
         self.assertIn("MetricsType=metrics/openmetrics", template)
-        self.assertIn("MetricsParameters=ignore_private_data", template)
+        self.assertNotIn("MetricsParameters", template)
 
     def test_multifactor_priority_uses_fairshare_without_preemption(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")

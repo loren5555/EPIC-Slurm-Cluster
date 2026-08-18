@@ -37,7 +37,6 @@ Add:
 
 ```ini
 MetricsType=metrics/openmetrics
-MetricsParameters=ignore_private_data
 ```
 
 - [x] **Step 2: Run the Slurm role tests**
