@@ -1,0 +1,6 @@
+# This file is managed by Ansible.
+version: 1
+metrics:
+  file: /etc/dcgm-exporter/default-counters.csv
+collection:
+  interval: {{ monitoring_dcgm_collection_interval_milliseconds }}ms

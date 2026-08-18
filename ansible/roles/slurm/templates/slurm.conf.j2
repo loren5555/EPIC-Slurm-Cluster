@@ -56,6 +56,11 @@ AccountingStorageEnforce={{ slurm_accounting_storage_enforce }}
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=30
 
+# Bounded internal metrics for Prometheus. Historical per-user reporting stays
+# in SlurmDBD instead of the high-cardinality jobs-users-accts endpoint.
+MetricsType=metrics/openmetrics
+MetricsParameters=ignore_private_data
+
 # Compute nodes
 {% for node_name in groups['compute_nodes'] | sort %}
 {% set node = hostvars[node_name] %}

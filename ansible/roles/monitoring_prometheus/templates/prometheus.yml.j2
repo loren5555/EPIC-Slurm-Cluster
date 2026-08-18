@@ -1,0 +1,81 @@
+# This file is managed by Ansible. Targets use stable inventory hostnames.
+global:
+  scrape_interval: {{ monitoring_prometheus_scrape_interval }}
+  scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+  external_labels:
+    cluster: {{ slurm_cluster_name }}
+
+scrape_configs:
+  - job_name: prometheus
+    scrape_interval: {{ monitoring_prometheus_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+          - "127.0.0.1:{{ monitoring_prometheus_port }}"
+
+  - job_name: node
+    scrape_interval: {{ monitoring_fast_scrape_interval }}
+    scrape_timeout: {{ monitoring_fast_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['all'] | sort %}
+          - "{{ host_name }}:{{ monitoring_node_exporter_port }}"
+{% endfor %}
+
+  - job_name: dcgm
+    scrape_interval: {{ monitoring_fast_scrape_interval }}
+    scrape_timeout: {{ monitoring_fast_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['gpu_nodes'] | sort %}
+          - "{{ host_name }}:{{ monitoring_dcgm_exporter_port }}"
+{% endfor %}
+
+  - job_name: nvitop
+    scrape_interval: {{ monitoring_fast_scrape_interval }}
+    scrape_timeout: {{ monitoring_fast_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['gpu_nodes'] | sort %}
+          - "{{ host_name }}:{{ monitoring_nvitop_exporter_port }}"
+{% endfor %}
+
+  - job_name: slurm-jobs
+    metrics_path: /metrics/jobs
+    scrape_interval: {{ monitoring_slurm_state_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['controllers'] | sort %}
+          - "{{ host_name }}:6817"
+{% endfor %}
+
+  - job_name: slurm-nodes
+    metrics_path: /metrics/nodes
+    scrape_interval: {{ monitoring_slurm_state_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['controllers'] | sort %}
+          - "{{ host_name }}:6817"
+{% endfor %}
+
+  - job_name: slurm-partitions
+    metrics_path: /metrics/partitions
+    scrape_interval: {{ monitoring_slurm_state_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['controllers'] | sort %}
+          - "{{ host_name }}:6817"
+{% endfor %}
+
+  - job_name: slurm-scheduler
+    metrics_path: /metrics/scheduler
+    scrape_interval: {{ monitoring_slurm_scheduler_scrape_interval }}
+    scrape_timeout: {{ monitoring_slow_scrape_timeout }}
+    static_configs:
+      - targets:
+{% for host_name in groups['controllers'] | sort %}
+          - "{{ host_name }}:6817"
+{% endfor %}

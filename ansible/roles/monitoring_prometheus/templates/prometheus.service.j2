@@ -1,0 +1,19 @@
+# This file is managed by Ansible.
+[Unit]
+Description=Prometheus Monitoring
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+ExecStart=/usr/local/bin/prometheus \
+    --config.file={{ monitoring_prometheus_configuration_directory }}/prometheus.yml \
+    --storage.tsdb.path={{ monitoring_prometheus_data_directory }} \
+    --storage.tsdb.retention.time={{ monitoring_prometheus_retention_time }} \
+    --storage.tsdb.retention.size={{ monitoring_prometheus_retention_size }} \
+    --web.listen-address=:{{ monitoring_prometheus_port }}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+# This file is managed by Ansible.
+[Unit]
+Description=Prometheus Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=node_exporter
+ExecStart=/usr/local/bin/node_exporter \
+    --web.listen-address=:{{ monitoring_node_exporter_port }} \
+    --collector.systemd \
+    --collector.textfile.directory={{ monitoring_node_exporter_textfile_directory }}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

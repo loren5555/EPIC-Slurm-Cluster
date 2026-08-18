@@ -1,0 +1,23 @@
+---
+# Software installation is manual. These plays only configure binaries and
+# vendor services that already exist on their target hosts.
+- name: Configure operating-system metrics on every cluster host
+  hosts: all
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - monitoring_node_exporter
+
+- name: Configure GPU metrics on declared GPU hosts
+  hosts: gpu_nodes
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - monitoring_gpu_exporters
+
+- name: Configure the central Prometheus service
+  hosts: controllers
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - monitoring_prometheus

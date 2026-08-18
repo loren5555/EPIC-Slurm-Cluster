@@ -1,0 +1,150 @@
+---
+- name: Locate the manually installed Prometheus binaries
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /usr/local/bin/prometheus
+    - /usr/local/bin/promtool
+  register: monitoring_prometheus_binaries
+
+- name: Require Prometheus before configuring its service
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.executable | default(false)
+    fail_msg: >-
+      Install both prometheus and promtool in /usr/local/bin before running the
+      monitoring playbook.
+    quiet: true
+  loop: "{{ monitoring_prometheus_binaries.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Create the Prometheus service account
+  ansible.builtin.user:
+    name: prometheus
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+  register: monitoring_prometheus_account
+
+- name: Create the Prometheus configuration directory
+  ansible.builtin.file:
+    path: "{{ monitoring_prometheus_configuration_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create the local Prometheus data directory
+  ansible.builtin.file:
+    path: "{{ monitoring_prometheus_data_directory }}"
+    state: directory
+    owner: prometheus
+    group: root
+    mode: "0750"
+  when: not ansible_check_mode or not monitoring_prometheus_account.changed
+
+- name: Install the inventory-derived Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_prometheus_configuration_directory }}/prometheus.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Prometheus
+
+- name: Install the Prometheus systemd service
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Prometheus
+
+- name: Create the local administrator executable directory
+  ansible.builtin.file:
+    path: "{{ monitoring_slurm_usage_collector_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the Slurm usage metrics collector
+  ansible.builtin.template:
+    src: epic-slurm-usage-collector.py.j2
+    dest: "{{ monitoring_slurm_usage_collector_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Refresh Slurm usage collector
+
+- name: Install the Slurm usage collector systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - epic-slurm-usage-collector.service
+    - epic-slurm-usage-collector.timer
+  notify: Refresh Slurm usage collector
+
+- name: Validate the installed Prometheus configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/promtool
+      - check
+      - config
+      - "{{ monitoring_prometheus_configuration_directory }}/prometheus.yml"
+  register: monitoring_prometheus_configuration_check
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Apply pending Prometheus service changes
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+
+- name: Keep Prometheus enabled and running
+  ansible.builtin.systemd_service:
+    name: prometheus.service
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Keep the Slurm usage collector timer enabled and running
+  ansible.builtin.systemd_service:
+    name: epic-slurm-usage-collector.timer
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Wait until Prometheus is ready
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/-/ready"
+  register: monitoring_prometheus_ready
+  changed_when: false
+  until: monitoring_prometheus_ready.status == 200
+  retries: 12
+  delay: 5
+  when: not ansible_check_mode
+
+- name: Wait until every declared Prometheus target is healthy
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_prometheus_port }}/api/v1/targets"
+    return_content: true
+  register: monitoring_prometheus_targets
+  changed_when: false
+  until:
+    - monitoring_prometheus_targets.json.status == 'success'
+    - monitoring_prometheus_targets.json.data.activeTargets | length > 0
+    - >-
+      monitoring_prometheus_targets.json.data.activeTargets
+      | rejectattr('health', 'equalto', 'up')
+      | list
+      | length == 0
+  retries: 12
+  delay: 5
+  when: not ansible_check_mode

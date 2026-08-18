@@ -1,0 +1,61 @@
+---
+- name: Locate the manually installed node_exporter binary
+  ansible.builtin.stat:
+    path: /usr/local/bin/node_exporter
+  register: monitoring_node_exporter_binary
+
+- name: Require node_exporter before configuring its service
+  ansible.builtin.assert:
+    that:
+      - monitoring_node_exporter_binary.stat.exists
+      - monitoring_node_exporter_binary.stat.executable | default(false)
+    fail_msg: >-
+      Install node_exporter at /usr/local/bin/node_exporter before running the
+      monitoring playbook.
+    quiet: true
+
+- name: Create the node_exporter service account
+  ansible.builtin.user:
+    name: node_exporter
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create the node_exporter textfile collector directory
+  ansible.builtin.file:
+    path: "{{ monitoring_node_exporter_textfile_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the node_exporter systemd service
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart node_exporter
+
+- name: Apply pending node_exporter service changes
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+
+- name: Keep node_exporter enabled and running
+  ansible.builtin.systemd_service:
+    name: node_exporter.service
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Confirm that node_exporter serves local metrics
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ monitoring_node_exporter_port }}/metrics"
+    return_content: true
+  register: monitoring_node_exporter_metrics
+  changed_when: false
+  failed_when:
+    - monitoring_node_exporter_metrics.status != 200
+      or 'node_exporter_build_info' not in monitoring_node_exporter_metrics.content
+  when: not ansible_check_mode

@@ -1,0 +1,25 @@
+---
+- name: Restart Prometheus
+  ansible.builtin.systemd_service:
+    name: prometheus.service
+    daemon_reload: true
+    enabled: true
+    state: restarted
+  when: not ansible_check_mode
+
+- name: Run the Slurm usage collector
+  ansible.builtin.systemd_service:
+    name: epic-slurm-usage-collector.service
+    daemon_reload: true
+    state: started
+  listen: Refresh Slurm usage collector
+  when: not ansible_check_mode
+
+- name: Restart the Slurm usage collector timer
+  ansible.builtin.systemd_service:
+    name: epic-slurm-usage-collector.timer
+    daemon_reload: true
+    enabled: true
+    state: restarted
+  listen: Refresh Slurm usage collector
+  when: not ansible_check_mode

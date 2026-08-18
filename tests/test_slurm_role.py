@@ -88,6 +88,12 @@ class SlurmRoleTests(unittest.TestCase):
         for setting in forbidden_settings:
             self.assertNotIn(setting, template)
 
+    def test_slurm_exposes_bounded_internal_openmetrics(self) -> None:
+        template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
+
+        self.assertIn("MetricsType=metrics/openmetrics", template)
+        self.assertIn("MetricsParameters=ignore_private_data", template)
+
     def test_multifactor_priority_uses_fairshare_without_preemption(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
         variables = read_ansible_file("inventory/group_vars/all/slurm.yml")
@@ -158,14 +164,14 @@ class SlurmRoleTests(unittest.TestCase):
         self.assertNotIn("add\n      - account", accounting_tasks)
         self.assertNotIn("add\n      - user", accounting_tasks)
 
-    def test_site_bootstraps_accounting_before_enabling_enforcement(self) -> None:
+    def test_site_populates_accounting_policy_before_enabling_enforcement(self) -> None:
         site = read_ansible_file("playbooks/site.yml")
 
-        bootstrap = site.index("slurm_accounting_storage_enforce: none")
+        database = site.index("import_playbook: slurmdbd.yml")
         associations = site.index("import_playbook: slurm_associations.yml")
         final_slurm = site.rindex("import_playbook: slurm.yml")
 
-        self.assertLess(bootstrap, associations)
+        self.assertLess(database, associations)
         self.assertLess(associations, final_slurm)
 
     def test_runtime_verification_pings_slurmdbd(self) -> None:
