@@ -4,10 +4,10 @@ dashboard_title: "EPIC Open OnDemand"
 # Keep every EPIC-managed application visible on the landing page. The same
 # inventory list also controls publication into the system application catalog.
 pinned_apps:
-{% for application in ood_system_applications %}
-  - "sys/{{ application }}"
+{% for application in ood_dashboard_pinned_apps %}
+  - "{{ application }}"
 {% endfor %}
-pinned_apps_menu_length: {{ ood_system_applications | length }}
+pinned_apps_menu_length: {{ ood_dashboard_pinned_apps | length }}
 
 remote_files_enabled: true
 remote_files_validation: false

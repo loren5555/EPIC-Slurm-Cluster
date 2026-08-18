@@ -28,3 +28,14 @@ ood_system_applications:
   - IAPP_tensorboard
   - IAPP_script
   - LINK_grafana
+
+ood_dashboard_pinned_apps:
+  - sys/IAPP_jupyter
+  - sys/IAPP_codeserver
+  - sys/IAPP_ttyd
+  - sys/IAPP_tensorboard
+  - sys/IAPP_script
+  - sys/LINK_grafana
+  - sys/activejobs
+  - sys/myjobs
+  
