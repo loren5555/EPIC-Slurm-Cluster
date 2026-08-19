@@ -65,6 +65,28 @@
     - item.name in epic_ssh_authorized_user_names
     - item.name in epic_ssh_public_key_source
 
+- name: Install the managed SSH client configuration on the controller
+  # OOD's built-in Shell invokes OpenSSH by inventory hostname. The explicit
+  # IdentityFile makes that connection use the generated cluster key instead
+  # of relying on a conventional id_ed25519 filename.
+  ansible.builtin.blockinfile:
+    path: "{{ item.home }}/.ssh/config"
+    create: true
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: "0600"
+    marker: "# {mark} ANSIBLE MANAGED EPIC SSH CLIENT CONFIG"
+    block: "{{ lookup('ansible.builtin.template', 'client_config.j2') }}"
+    state: present
+  vars:
+    ssh_config_user: "{{ item }}"
+  loop: "{{ cluster_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - inventory_hostname in groups['controllers']
+    - item.name in epic_ssh_public_key_source
+
 - name: Inspect authorized_keys for users not authorized on this host
   # Stat first avoids touching or creating a nonexistent authorized_keys file.
   ansible.builtin.stat:

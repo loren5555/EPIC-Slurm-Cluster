@@ -1,0 +1,13 @@
+{#
+  This block is rendered once per user on the controller. The controller is
+  always reachable; compute hosts are limited to that user's ssh_access list.
+#}
+{% set ssh_hosts = (groups['controllers'] + (ssh_config_user.ssh_access | default([]))) | unique | sort %}
+{% for host_name in ssh_hosts %}
+Host {{ host_name }}
+    HostName {{ host_name }}
+    User {{ ssh_config_user.name }}
+    IdentityFile ~/.ssh/epic_cluster_ed25519
+    IdentitiesOnly yes
+    StrictHostKeyChecking accept-new
+{% endfor %}
