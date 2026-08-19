@@ -133,6 +133,12 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn('"host": HOST', collector)
         self.assertIn("OOD_QUOTA_DIRECTORY", dashboard_env)
 
+    def test_quota_preflight_uses_user_quota_state_not_aggregate_exit_code(self) -> None:
+        tasks = read_ansible_file("roles/disk_quota/tasks/main.yml")
+
+        self.assertNotIn("disk_quota_status.rc != 0", tasks)
+        self.assertIn("select('match', '^user quota on .* is on$')", tasks)
+
     def test_quota_widget_aggregates_hosts_and_marks_stale_reports(self) -> None:
         widget = read_ansible_file(
             "roles/ood_controller/templates/epic_disk_quota_status.html.erb.j2"

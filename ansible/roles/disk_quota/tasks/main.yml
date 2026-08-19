@@ -11,9 +11,10 @@
     LC_ALL: C
   changed_when: false
   failed_when: >-
-    disk_quota_status.rc != 0 or
-    ('user quota on ' not in disk_quota_status.stdout) or
-    (' is on' not in disk_quota_status.stdout)
+    disk_quota_status.stdout_lines
+    | select('match', '^user quota on .* is on$')
+    | list
+    | length == 0
   loop: "{{ disk_quotas }}"
   loop_control:
     label: "{{ item.filesystem }}"
