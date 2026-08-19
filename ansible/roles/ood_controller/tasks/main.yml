@@ -17,6 +17,8 @@
       mode: "0755"
     - path: "{{ ood_configuration_directory }}/apps/dashboard"
       mode: "0755"
+    - path: "{{ ood_configuration_directory }}/apps/dashboard/views/widgets"
+      mode: "0755"
     - path: "{{ ood_configuration_directory }}/apps/myjobs"
       mode: "0755"
     - path: /etc/ood/auth
@@ -27,6 +29,10 @@
     - path: "{{ ood_shared_root }}/users"
       mode: "0711"
     - path: /etc/exports.d
+      mode: "0755"
+    - path: "{{ ood_shared_root }}/quota"
+      owner: "{{ ood_quota_writer_user }}"
+      group: "{{ ood_quota_writer_user }}"
       mode: "0755"
 
 - name: Create each user's private OOD context root
@@ -138,6 +144,15 @@
   ansible.builtin.template:
     src: dashboard.env.j2
     dest: "{{ ood_configuration_directory }}/apps/dashboard/env"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
+- name: Install the EPIC disk quota status widget
+  ansible.builtin.template:
+    src: epic_disk_quota_status.html.erb.j2
+    dest: "{{ ood_configuration_directory }}/apps/dashboard/views/widgets/_epic_disk_quota_status.html.erb"
     owner: root
     group: root
     mode: "0644"

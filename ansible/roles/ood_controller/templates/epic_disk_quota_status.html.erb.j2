@@ -1,0 +1,82 @@
+<%
+  quota_rows = []
+  current_user = OodSupport::User.new.name
+  stale_seconds = ENV.fetch("OOD_QUOTA_STALE_SECONDS", "900").to_i
+  current_time = Time.now.to_i
+
+  Dir.glob(File.join(ENV.fetch("OOD_QUOTA_DIRECTORY"), "*.json")).sort.each do |quota_file|
+    begin
+      quota_document = JSON.parse(File.read(quota_file))
+      host = quota_document["host"]
+      next if host.to_s.empty?
+
+      timestamp = quota_document.fetch("timestamp", 0).to_i
+      stale = timestamp <= 0 || current_time - timestamp > stale_seconds
+
+      quota_document.fetch("quotas", []).each do |quota|
+        next unless quota["user"] == current_user
+
+        quota_rows << quota.merge(
+          "host" => host,
+          "report_timestamp" => timestamp,
+          "report_stale" => stale
+        )
+      end
+    rescue StandardError => error
+      Rails.logger.warn("Unable to load EPIC quota status from #{quota_file}: #{error.message}")
+    end
+  end
+
+  status_labels = {
+    "normal" => ["正常", "success"],
+    "warning" => ["接近软限额", "warning"],
+    "soft_limit" => ["已超过软限额，处于宽限期", "warning"],
+    "grace_expired" => ["宽限期已结束，禁止继续写入", "danger"],
+    "hard_limit" => ["已达到硬限额，禁止继续写入", "danger"]
+  }
+%>
+
+<div class="h2 text-center">EPIC 磁盘配额状态</div>
+
+<% if quota_rows.empty? %>
+  <div class="alert alert-secondary">
+    暂无磁盘配额数据。数据由计算节点每 5 分钟更新。
+  </div>
+<% else %>
+  <div class="list-group mb-3">
+    <% quota_rows.sort_by { |quota| [quota["host"], quota["path"]] }.each do |quota| %>
+      <%
+        used = quota.fetch("total_block_usage", 0).to_i
+        soft = quota.fetch("epic_soft_block_limit", 0).to_i
+        hard = quota.fetch("epic_hard_block_limit", 0).to_i
+        grace_expires = quota.fetch("epic_block_grace_expires", 0).to_i
+        label, color = status_labels.fetch(quota["epic_status"], ["状态未知", "secondary"])
+        if quota["report_stale"]
+          label = "数据已过期"
+          color = "secondary"
+        end
+      %>
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center">
+          <strong><%= quota["host"] %> · <%= quota["path"] %></strong>
+          <span class="badge bg-<%= color %>"><%= label %></span>
+        </div>
+        <div class="mt-2">
+          已用 <strong><%= number_to_human_size(used * 1024) %></strong>
+          / 软限额 <%= number_to_human_size(soft * 1024) %>
+          / 硬限额 <%= hard.positive? ? number_to_human_size(hard * 1024) : "不设置" %>
+        </div>
+        <% if quota["epic_status"] == "soft_limit" && grace_expires.positive? %>
+          <div class="text-warning mt-1">
+            宽限期截止：<%= Time.at(grace_expires).getlocal.strftime("%Y-%m-%d %H:%M") %>
+          </div>
+        <% end %>
+        <% if quota["report_stale"] %>
+          <div class="text-secondary mt-1">
+            最后更新：<%= quota["report_timestamp"].positive? ? Time.at(quota["report_timestamp"]).getlocal.strftime("%Y-%m-%d %H:%M") : "未知" %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

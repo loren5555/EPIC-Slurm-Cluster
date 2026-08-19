@@ -10,6 +10,10 @@ ood_dashboard_dataroot: "{{ ood_shared_root }}/users/$USER/ondemand/data/sys/das
 ood_myjobs_dataroot: "{{ ood_shared_root }}/users/$USER/ondemand/data/sys/myjobs"
 ood_session_retention_days: 30
 ood_automount_idle_seconds: 300
+ood_quota_directory: "{{ ood_shared_root }}/quota"
+ood_quota_threshold: 0.80
+ood_quota_stale_seconds: 900
+ood_quota_writer_user: administrator
 
 # Interactive applications are deliberately shorter than ordinary 14-day batch
 # jobs so abandoned browser sessions do not occupy accelerators indefinitely.
@@ -38,4 +42,3 @@ ood_dashboard_pinned_apps:
   - sys/LINK_grafana
   - sys/activejobs
   - sys/myjobs
-  

@@ -21,7 +21,7 @@
 - 系统资源：`htop`、`free -h`、`df -h`
 - GPU：`nvidia-smi`、`nvitop`
 - 队列：`squeue -u $USER`、`sinfo -s`
-- 磁盘限额：`quota -s`
+- 磁盘限额：`quota -s`；OOD 首页显示 `/home` 与 `/workspace` 使用量，超过 soft 限额后进入宽限期
 - 若任务卡在排队：查看 `squeue` 输出，确认资源请求是否合理
 - 若 IApp 无法进入：查看会话卡片日志；必要时在 Issue 中附上日志片段与复现步骤。
 

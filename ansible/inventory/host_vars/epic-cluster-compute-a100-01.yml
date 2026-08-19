@@ -17,3 +17,15 @@ ood_display_name: "A100 40 GB × 8 — Node 01 — Controlled"
 
 # One allocated GPU is one billing unit. CPU usage only breaks close ties.
 slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"
+
+# Filesystem quota policy. Filesystem initialization is manual; Ansible only
+# maintains limits after user identities and quota accounting already exist.
+disk_quotas:
+  - filesystem: /home
+    soft_gib: 20
+    hard_gib: 30
+    grace_period_seconds: 259200
+  - filesystem: /workspace
+    soft_gib: 1024
+    hard_gib: 0
+    grace_period_seconds: 604800

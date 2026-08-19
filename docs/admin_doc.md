@@ -43,11 +43,13 @@ Prometheus / Grafana：根据安装路径查看 logs/
 
 ## 4) 存储与配额现状
 
-/home：共688G，限制20GB。
+/home：A100 本地 ext4，共688G；普通用户 soft 20GiB、hard 30GiB，宽限期3天。
 
-/workspace：共14T RAID0 无备份，只放可再生/非关键数据。
+/workspace：A100 本地 ext4，共14T RAID0 无备份，只放可再生/非关键数据；普通用户 soft 1TiB，不设 hard，宽限期7天。
 
 /data：NFS，共28T 存放大型数据集与模型权重。
+
+配额的文件系统初始化由管理员手工完成（`fstab`、remount、`quotacheck`、`quotaon`）；持续的用户限额和 OOD 首页配额展示由 Ansible `disk_quota` role 管理。该 role 不修改挂载参数，也不运行 `quotacheck`。
 
 ## 5) BMC 面板访问
 

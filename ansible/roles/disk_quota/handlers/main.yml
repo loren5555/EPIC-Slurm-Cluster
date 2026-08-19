@@ -1,0 +1,8 @@
+---
+- name: Refresh disk quota collector
+  ansible.builtin.systemd_service:
+    name: epic-disk-quota-collector.timer
+    enabled: true
+    state: restarted
+    daemon_reload: true
+  when: not ansible_check_mode

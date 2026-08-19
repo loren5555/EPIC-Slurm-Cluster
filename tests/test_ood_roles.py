@@ -119,6 +119,30 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("force: false", tasks)
         self.assertIn("cluster_users", tasks)
 
+    def test_quota_reports_are_independent_per_compute_host(self) -> None:
+        variables = read_ansible_file("inventory/group_vars/all/ood.yml")
+        collector = read_ansible_file(
+            "roles/disk_quota/templates/epic-disk-quota-collector.py.j2"
+        )
+        dashboard_env = read_ansible_file(
+            "roles/ood_controller/templates/dashboard.env.j2"
+        )
+
+        self.assertIn("ood_quota_directory:", variables)
+        self.assertIn("inventory_hostname", collector)
+        self.assertIn('"host": HOST', collector)
+        self.assertIn("OOD_QUOTA_DIRECTORY", dashboard_env)
+
+    def test_quota_widget_aggregates_hosts_and_marks_stale_reports(self) -> None:
+        widget = read_ansible_file(
+            "roles/ood_controller/templates/epic_disk_quota_status.html.erb.j2"
+        )
+
+        self.assertIn('Dir.glob(File.join(ENV.fetch("OOD_QUOTA_DIRECTORY"), "*.json"))', widget)
+        self.assertIn('quota["host"]', widget)
+        self.assertIn("OOD_QUOTA_STALE_SECONDS", widget)
+        self.assertIn("数据已过期", widget)
+
     def test_compute_context_uses_automount(self) -> None:
         tasks = read_ansible_file("roles/ood_compute/tasks/main.yml")
         mount = read_ansible_file("roles/ood_compute/templates/srv-epic-ood.mount.j2")

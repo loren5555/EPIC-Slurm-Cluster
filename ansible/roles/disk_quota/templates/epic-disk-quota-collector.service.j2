@@ -1,0 +1,8 @@
+[Unit]
+Description=EPIC filesystem quota report for Open OnDemand
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/epic-disk-quota-collector

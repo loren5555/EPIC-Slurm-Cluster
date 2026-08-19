@@ -1582,6 +1582,48 @@ curl --silent http://127.0.0.1:9301/metrics | head
 - 新增计算节点：先按运行环境文档安装程序，再加入 inventory、Slurm 分区与用户 `ssh_access`，最后运行 `ood.yml`；
 - NFS 故障：只处理 OOD 上下文服务，不要把用户 Home、Slurm 状态或普通作业迁入该 NFS。
 
+### 13.8 本地磁盘配额与 OOD 提示
+
+A100 节点的 `/home` 和 `/workspace` 是独立的本地 ext4 文件系统，配额只在该节点生效：
+
+- `/home`：普通用户 soft 20 GiB、hard 30 GiB，宽限期 3 天；
+- `/workspace`：普通用户 soft 1 TiB，不设 hard，宽限期 7 天；
+- 配额只限制块空间，不限制文件数量；
+- `/workspace` 是无备份 RAID0，只用于环境、缓存和可再生数据。
+
+首次启用文件系统配额需要手工完成，Ansible 不修改 `fstab`，不执行 `quotacheck`，不自动 remount：
+
+```bash
+# 确认文件系统类型和挂载参数
+findmnt -T /home -o TARGET,SOURCE,FSTYPE,OPTIONS
+findmnt -T /workspace -o TARGET,SOURCE,FSTYPE,OPTIONS
+
+# 在 /etc/fstab 的 /workspace ext4 行加入 usrquota 后重新挂载
+sudo mount -o remount /workspace
+
+# 初始化并启用 workspace user quota
+sudo quotacheck -cum /workspace
+sudo quotaon /workspace
+sudo edquota -t -f /workspace      # Block grace period: 7days
+```
+
+确认两个文件系统都显示 `user quota ... is on` 后，运行：
+
+```bash
+cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
+ansible-playbook playbooks/disk_quotas.yml
+```
+
+该 role 只负责持续设置用户 soft/hard limit 和宽限期。每个启用配额管理的计算节点每 5 分钟生成一份以完整主机名命名的 JSON，例如 `epic-cluster-compute-a100-01.json`。OOD Dashboard 自动扫描目录并按“主机 · 文件系统”展示；报告超过 15 分钟未更新时标记为“数据已过期”。新增节点无需修改 OOD 主机列表。超过 soft 限额的 80% 时开始提示。检查结果：
+
+```bash
+sudo quota -s -u liuhongbo -f /home
+sudo quota -s -u liuhongbo -f /workspace
+systemctl status epic-disk-quota-collector.timer
+ls -l /srv/epic/ood/quota
+cat /srv/epic/ood/quota/epic-cluster-compute-a100-01.json
+```
+
 ## 14. 新增计算节点流程
 
 新增服务器不修改模板逻辑，只增加数据并按既定顺序收敛：

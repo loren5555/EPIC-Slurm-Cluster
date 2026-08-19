@@ -9,6 +9,18 @@ pinned_apps:
 {% endfor %}
 pinned_apps_menu_length: {{ ood_dashboard_pinned_apps | length }}
 
+dashboard_layout:
+  rows:
+    - columns:
+        - width: 8
+          widgets:
+            - pinned_apps
+            - sessions
+            - motd
+        - width: 4
+          widgets:
+            - epic_disk_quota_status
+
 remote_files_enabled: true
 remote_files_validation: false
 files_enable_shell_button: false

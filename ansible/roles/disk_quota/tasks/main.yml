@@ -1,0 +1,77 @@
+---
+- name: Verify quota accounting is enabled for each managed filesystem
+  ansible.builtin.command:
+    argv:
+      - quotaon
+      - -p
+      - "{{ item.filesystem }}"
+  register: disk_quota_status
+  check_mode: false
+  environment:
+    LC_ALL: C
+  changed_when: false
+  failed_when: >-
+    disk_quota_status.rc != 0 or
+    ('user quota on ' not in disk_quota_status.stdout) or
+    (' is on' not in disk_quota_status.stdout)
+  loop: "{{ disk_quotas }}"
+  loop_control:
+    label: "{{ item.filesystem }}"
+
+- name: Set quota grace periods
+  ansible.builtin.command:
+    argv:
+      - setquota
+      - -t
+      - "{{ item.grace_period_seconds }}"
+      - "{{ item.grace_period_seconds }}"
+      - "{{ item.filesystem }}"
+  loop: "{{ disk_quotas }}"
+  loop_control:
+    label: "{{ item.filesystem }}"
+
+- name: Apply block and inode quotas to managed users
+  ansible.builtin.command:
+    argv:
+      - setquota
+      - -u
+      - "{{ user.name }}"
+      - "{{ (quota.soft_gib | int) * 1024 * 1024 }}"
+      - "{{ (quota.hard_gib | int) * 1024 * 1024 }}"
+      - 0
+      - 0
+      - "{{ quota.filesystem }}"
+  loop: "{{ disk_quotas | product(cluster_users) | list }}"
+  vars:
+    quota: "{{ item.0 }}"
+    user: "{{ item.1 }}"
+  loop_control:
+    label: "{{ user.name }} on {{ quota.filesystem }}"
+
+- name: Install the OOD quota collector
+  ansible.builtin.template:
+    src: epic-disk-quota-collector.py.j2
+    dest: /usr/local/sbin/epic-disk-quota-collector
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Refresh disk quota collector
+
+- name: Install the OOD quota collector service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - epic-disk-quota-collector.service
+    - epic-disk-quota-collector.timer
+  notify: Refresh disk quota collector
+
+- name: Keep the OOD quota collector timer enabled
+  ansible.builtin.systemd_service:
+    name: epic-disk-quota-collector.timer
+    enabled: true
+    state: started
+  when: not ansible_check_mode
