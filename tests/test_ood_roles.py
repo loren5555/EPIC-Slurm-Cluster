@@ -96,7 +96,7 @@ class OODRoleTests(unittest.TestCase):
 
         self.assertIn('/etc/ood/auth/htpasswd', portal)
         self.assertIn("AuthType Basic", portal)
-        self.assertIn('AuthName "EPIC Open OnDemand"', portal)
+        self.assertIn('AuthName "EPIC"', portal)
         self.assertIn("servername: \"{{ ood_server_address }}\"", portal)
         self.assertIn("host_regex:", portal)
         self.assertIn("subjectAltName", tls)
