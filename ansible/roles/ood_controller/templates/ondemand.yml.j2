@@ -12,12 +12,13 @@ pinned_apps_menu_length: {{ ood_dashboard_pinned_apps | length }}
 dashboard_layout:
   rows:
     - columns:
-        - width: 8
+        - width: 12
           widgets:
             - pinned_apps
             - sessions
             - motd
-        - width: 4
+    - columns:
+        - width: 12
           widgets:
             - epic_disk_quota_status
 

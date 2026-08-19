@@ -40,6 +40,8 @@ class OODRoleTests(unittest.TestCase):
             "roles/ood_controller/templates/epic-ood.exports.j2",
             "roles/ood_controller/templates/openssl.cnf.j2",
             "roles/ood_controller/templates/ondemand_exporter.service.j2",
+            "roles/ood_controller/templates/announcement-dismissible.yml.j2",
+            "roles/ood_controller/templates/announcement-persistent.yml.j2",
             "roles/ood_compute/tasks/main.yml",
             "roles/ood_compute/templates/srv-epic-ood.mount.j2",
             "roles/ood_compute/templates/srv-epic-ood.automount.j2",
@@ -93,6 +95,12 @@ class OODRoleTests(unittest.TestCase):
         tls = read_ansible_file("roles/ood_controller/templates/openssl.cnf.j2")
         exports = read_ansible_file("roles/ood_controller/templates/epic-ood.exports.j2")
         exporter = read_ansible_file("roles/ood_controller/templates/ondemand_exporter.service.j2")
+        dismissible = read_ansible_file(
+            "roles/ood_controller/templates/announcement-dismissible.yml.j2"
+        )
+        persistent = read_ansible_file(
+            "roles/ood_controller/templates/announcement-persistent.yml.j2"
+        )
 
         self.assertIn('/etc/ood/auth/htpasswd', portal)
         self.assertIn("AuthType Basic", portal)
@@ -129,6 +137,9 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("update_ood_portal", handlers)
         self.assertIn("force: false", tasks)
         self.assertIn("cluster_users", tasks)
+        self.assertIn("announcements.d", tasks)
+        self.assertIn("dismissible: true", dismissible)
+        self.assertIn("dismissible: false", persistent)
 
     def test_quota_reports_are_independent_per_compute_host(self) -> None:
         variables = read_ansible_file("inventory/group_vars/all/ood.yml")
