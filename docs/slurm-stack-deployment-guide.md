@@ -1626,7 +1626,7 @@ cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
 ansible-playbook playbooks/disk_quotas.yml
 ```
 
-控制节点的策略定义在 `ansible/inventory/host_vars/epic-cluster-controller-01.yml`：所有受管用户的 `/home` 软限额为 `5 GiB`、无硬限额、宽限期为 3 天。它是临时中转空间，不应用于长期保存数据。
+控制节点的策略定义在 `ansible/inventory/host_vars/epic-cluster-controller-01.yml`：控制节点的 `/home` 位于根文件系统 `/`，因此 role 对 `/` 设置配额；所有受管用户的 Home 软限额为 `5 GiB`、无硬限额、宽限期为 3 天。它是临时中转空间，不应用于长期保存数据。
 
 该 role 只负责持续设置用户 soft/hard limit 和宽限期。每个启用配额管理的计算节点每 5 分钟生成一份以完整主机名命名的 JSON，例如 `epic-cluster-compute-a100-01.json`。OOD Dashboard 自动扫描目录并按“主机 · 文件系统”展示；报告超过 15 分钟未更新时标记为“数据已过期”。新增节点无需修改 OOD 主机列表。超过 soft 限额的 80% 时开始提示。检查结果：
 

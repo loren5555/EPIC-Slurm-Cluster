@@ -3,7 +3,9 @@
 # limit allows short file transfers while preventing unattended Home growth
 # from exhausting the system disk and interrupting cluster services.
 disk_quotas:
-  - filesystem: /home
+  # /home is a directory on the controller's root filesystem. setquota and
+  # quotaon must therefore use the real mount point, not the subdirectory.
+  - filesystem: /
     soft_gib: 5
     hard_gib: 0
     grace_period_seconds: 259200

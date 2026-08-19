@@ -173,7 +173,7 @@ class OODRoleTests(unittest.TestCase):
         )
 
         self.assertIn("controllers:compute_nodes", playbook)
-        self.assertIn("filesystem: /home", controller)
+        self.assertIn("filesystem: /\n", controller)
         self.assertIn("soft_gib: 5", controller)
         self.assertIn("hard_gib: 0", controller)
         self.assertIn("grace_period_seconds: 259200", controller)
