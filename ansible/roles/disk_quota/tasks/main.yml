@@ -30,6 +30,7 @@
   loop: "{{ disk_quotas }}"
   loop_control:
     label: "{{ item.filesystem }}"
+  changed_when: false
 
 - name: Apply block and inode quotas to managed users
   ansible.builtin.command:
@@ -48,6 +49,7 @@
     user: "{{ item.1 }}"
   loop_control:
     label: "{{ user.name }} on {{ quota.filesystem }}"
+  changed_when: false
 
 - name: Install the OOD quota collector
   ansible.builtin.template:
