@@ -1553,7 +1553,8 @@ ansible-playbook playbooks/monitoring.yml
 4. 在计算节点启用按需 NFS 挂载；
 5. 发布五个 IAPP、Grafana 链接和三个 Job Composer 模板；
 6. 按 `ssh_access` 为每个用户生成对应 rclone/SFTP Remote Files；
-7. 启动 `ondemand_exporter`，并让 Prometheus 每 2 分钟采集一次。
+7. 启用 Job Composer 使用的控制节点 Shell，并为 Node 22 Passenger 进程禁用 V8 JIT；
+8. 启动 `ondemand_exporter`，并让 Prometheus 每 2 分钟采集一次。
 
 浏览器首次访问自签名证书时会显示警告；在校园网内确认地址正确后接受即可。
 
@@ -1571,6 +1572,7 @@ curl --silent http://127.0.0.1:9301/metrics | head
 - 提交一个短 ttyd 或 JupyterLab 会话后，作业出现在 `squeue`，页面能够连接；
 - Remote Files 只显示该用户 `ssh_access` 中的主机；
 - Job Composer 中存在 Basic、GPU 和 Array 三个模板；
+- Job Composer 的 Open Terminal 能够打开控制节点 Shell；
 - Prometheus 的 `open-ondemand` target 为 `UP`。
 
 ### 13.7 日常修改规则
@@ -1579,6 +1581,7 @@ curl --silent http://127.0.0.1:9301/metrics | head
 - 改控制节点 IP：保持 `ood_server_address` 不变，只更新客户端 DNS 或 hosts 中 `epic-cluster-controller-01` 的地址；
 - 改用户可见主机：修改 Slurm 分区授权/Association 相关清单，然后运行 Association 与 OOD playbook；
 - 改 IAPP：修改仓库中的 `apps/IAPP_*`，再运行 `ood.yml`；
+- 升级 OOD、Passenger 或 Node 后：临时移除 `ood_pun_node_options` 复测 Job Composer terminal；若不再出现 V8 executable-memory 错误，可永久删除 `--jitless` 兼容配置；
 - 新增计算节点：先按运行环境文档安装程序，再加入 inventory、Slurm 分区与用户 `ssh_access`，最后运行 `ood.yml`；
 - NFS 故障：只处理 OOD 上下文服务，不要把用户 Home、Slurm 状态或普通作业迁入该 NFS。
 

@@ -25,6 +25,10 @@ ood_tls_directory: /etc/ood/tls
 ood_application_deploy_root: /opt/ood_apps/epic
 ood_exporter_port: 9301
 
+# Passenger 6.1.2 cannot start the Node 22 OOD Shell with V8 JIT enabled in a
+# PUN. This affects only Node applications hosted inside the OOD PUN.
+ood_pun_node_options: --jitless
+
 ood_system_applications:
   - IAPP_jupyter
   - IAPP_codeserver
@@ -44,4 +48,3 @@ ood_dashboard_pinned_apps:
   - sys/myjobs
   - sys/projects
   - sys/files
-  

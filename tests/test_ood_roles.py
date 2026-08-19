@@ -34,6 +34,7 @@ class OODRoleTests(unittest.TestCase):
             "roles/ood_controller/templates/ood_portal.yml.j2",
             "roles/ood_controller/templates/epic.yml.j2",
             "roles/ood_controller/templates/ondemand.yml.j2",
+            "roles/ood_controller/templates/nginx_stage.yml.j2",
             "roles/ood_controller/templates/dashboard.env.j2",
             "roles/ood_controller/templates/myjobs.env.j2",
             "roles/ood_controller/templates/epic-ood.exports.j2",
@@ -84,6 +85,9 @@ class OODRoleTests(unittest.TestCase):
         portal = read_ansible_file("roles/ood_controller/templates/ood_portal.yml.j2")
         cluster = read_ansible_file("roles/ood_controller/templates/epic.yml.j2")
         dashboard = read_ansible_file("roles/ood_controller/templates/ondemand.yml.j2")
+        nginx_stage = read_ansible_file(
+            "roles/ood_controller/templates/nginx_stage.yml.j2"
+        )
         dashboard_env = read_ansible_file("roles/ood_controller/templates/dashboard.env.j2")
         myjobs_env = read_ansible_file("roles/ood_controller/templates/myjobs.env.j2")
         tls = read_ansible_file("roles/ood_controller/templates/openssl.cnf.j2")
@@ -99,15 +103,22 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("DNS.1 = {{ ood_server_address }}", tls)
 
         self.assertIn('adapter: "slurm"', cluster)
-        self.assertIn('submit_host: "{{ slurm_controller_host }}"', cluster)
+        self.assertIn("login:", cluster)
+        self.assertIn('host: "{{ slurm_controller_host }}"', cluster)
         self.assertIn('conf: "/etc/slurm/slurm.conf"', cluster)
         self.assertIn("ssh_allow: false", cluster)
 
         self.assertIn("remote_files_enabled: true", dashboard)
         self.assertIn("remote_files_validation: false", dashboard)
         self.assertIn("files_enable_shell_button: false", dashboard)
-        self.assertIn("disable_bc_shell: true", dashboard)
+        self.assertNotIn("disable_bc_shell: true", dashboard)
         self.assertIn("bc_clean_old_dirs: true", dashboard)
+
+        self.assertIn("Enable the built-in Shell for Job Composer terminals", tasks)
+        self.assertIn("mode: \"0755\"", tasks)
+        self.assertIn("src: nginx_stage.yml.j2", tasks)
+        self.assertIn('NODE_OPTIONS: "{{ ood_pun_node_options }}"', nginx_stage)
+        self.assertIn("when: not ansible_check_mode", handlers)
 
         self.assertIn("{{ ood_dashboard_dataroot }}", dashboard_env)
         self.assertIn("{{ ood_myjobs_dataroot }}", myjobs_env)

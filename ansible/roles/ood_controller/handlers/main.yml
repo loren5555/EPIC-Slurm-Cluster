@@ -26,6 +26,7 @@
       - nginx_clean
       - -f
   changed_when: true
+  when: not ansible_check_mode
 
 - name: Restart the OOD exporter
   ansible.builtin.systemd_service:
@@ -33,4 +34,3 @@
     state: restarted
     daemon_reload: true
   when: not ansible_check_mode
-  

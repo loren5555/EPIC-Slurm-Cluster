@@ -1,0 +1,5 @@
+---
+# Node 22 fails while creating V8 JIT executable pages when the OOD Shell is
+# launched through Passenger. JIT is unnecessary for this lightweight web app.
+pun_custom_env:
+  NODE_OPTIONS: "{{ ood_pun_node_options }}"

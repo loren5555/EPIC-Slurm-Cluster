@@ -122,6 +122,15 @@
     mode: "0644"
   notify: Apply OOD portal changes
 
+- name: Configure the per-user OOD web runtime
+  ansible.builtin.template:
+    src: nginx_stage.yml.j2
+    dest: "{{ ood_configuration_directory }}/nginx_stage.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
 - name: Install the local Slurm cluster adapter
   ansible.builtin.template:
     src: epic.yml.j2
@@ -167,13 +176,14 @@
     mode: "0644"
   notify: Restart all user PUNs
 
-- name: Hide the built-in unscheduled Shell application
+- name: Enable the built-in Shell for Job Composer terminals
   ansible.builtin.file:
     path: /var/www/ood/apps/sys/shell
     state: directory
     owner: root
     group: root
-    mode: "0700"
+    mode: "0755"
+  notify: Restart all user PUNs
 
 - name: Export the dedicated OOD context directory
   ansible.builtin.template:
