@@ -1,0 +1,26 @@
+# Managed by Ansible. Cluster operators use the reviewed checkout only.
+Defaults:%epic-operators !setenv
+
+Cmnd_Alias EPIC_GIT = \
+  /usr/bin/git -C {{ epic_deployment_repository }} status --short, \
+  /usr/bin/git -C {{ epic_deployment_repository }} log --oneline -n 20, \
+  /usr/bin/git -C {{ epic_deployment_repository }} pull --ff-only {{ epic_git_remote }} {{ epic_git_branch }}
+
+Cmnd_Alias EPIC_ANSIBLE = \
+{% for playbook in ['users.yml', 'ssh_access.yml', 'slurm.yml', 'slurm_associations.yml', 'disk_quotas.yml', 'monitoring.yml', 'grafana.yml', 'ood.yml'] %}
+  /usr/bin/env ANSIBLE_CONFIG={{ epic_ansible_directory }}/ansible.cfg /usr/bin/ansible-playbook {{ epic_ansible_directory }}/playbooks/{{ playbook }}, \
+  /usr/bin/env ANSIBLE_CONFIG={{ epic_ansible_directory }}/ansible.cfg /usr/bin/ansible-playbook {{ epic_ansible_directory }}/playbooks/{{ playbook }} --check{% if not loop.last %}, \
+{% endif %}
+{% endfor %}
+
+# The regular expression permits a password reset only for a declared cluster
+# user. Password input remains interactive and is never committed to Git.
+Cmnd_Alias EPIC_OOD_PASSWORD = /usr/bin/htpasswd {{ ood_authentication_file }} ^({{ cluster_users | map(attribute='name') | join('|') }})$
+
+# Cluster accounts authenticate with personal SSH keys and normally have locked
+# Linux passwords. NOPASSWD applies only to the fixed command aliases above.
+%epic-operators ALL=(root) NOPASSWD: EPIC_GIT, EPIC_ANSIBLE, EPIC_OOD_PASSWORD
+
+# This group replaces reliance on the shared system sudo group and permits
+# exact membership convergence when a superadministrator leaves the team.
+%epic-superadmins ALL=(ALL:ALL) ALL

@@ -1,0 +1,16 @@
+---
+# The owner is initially the only superadministrator and cluster operator.
+# Add the future deputy and the remaining operators here after their cluster
+# accounts already exist in users.yml.
+epic_superadministrators:
+  - liuhongbo
+
+epic_operators:
+  - liuhongbo
+
+# The deployment checkout stays owned by the existing administrator account.
+# Operators may update its protected main branch and run only listed playbooks.
+epic_deployment_repository: /srv/epic/repos/EPIC-Slurm-Cluster
+epic_ansible_directory: "{{ epic_deployment_repository }}/ansible"
+epic_git_remote: origin
+epic_git_branch: main

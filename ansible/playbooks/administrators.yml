@@ -1,0 +1,13 @@
+---
+# Configure controller-side operator privileges after Linux identities and
+# SlurmDBD Accounts already exist.
+- name: Synchronize EPIC cluster operator access
+  hosts: controllers
+  gather_facts: false
+  become: true
+  vars_files:
+    - ../vars/users.yml
+    - ../vars/administrators.yml
+    - ../inventory/group_vars/all/ood.yml
+  roles:
+    - cluster_operator

@@ -1,0 +1,105 @@
+---
+- name: Collect declared cluster and administrator user names
+  ansible.builtin.set_fact:
+    cluster_operator_user_names: "{{ cluster_users | map(attribute='name') | list }}"
+
+- name: Require administrators to be declared cluster users
+  ansible.builtin.assert:
+    that:
+      - epic_superadministrators | difference(cluster_operator_user_names) | length == 0
+      - epic_operators | difference(cluster_operator_user_names) | length == 0
+    fail_msg: >-
+      Every superadministrator and operator must first be declared in
+      ansible/vars/users.yml.
+    quiet: true
+
+- name: Create EPIC administrator groups on the controller
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - epic-superadmins
+    - epic-operators
+
+- name: Refresh administrator group membership after creation
+  ansible.builtin.getent:
+    database: group
+
+- name: Synchronize exact cluster operator membership
+  # These groups are owned only by this role, so gpasswd safely revokes access
+  # when an administrator is removed from the manifest.
+  ansible.builtin.command:
+    argv:
+      - gpasswd
+      - --members
+      - "{{ epic_operators | sort | join(',') }}"
+      - epic-operators
+  vars:
+    current_members: >-
+      {{ ansible_facts.getent_group['epic-operators'][2].split(',')
+         | reject('equalto', '') | sort }}
+  when: current_members != (epic_operators | sort)
+  changed_when: true
+
+- name: Synchronize exact superadministrator membership
+  # Full sudo is granted by the dedicated sudoers group below, not by adding
+  # users to the shared system sudo group.
+  ansible.builtin.command:
+    argv:
+      - gpasswd
+      - --members
+      - "{{ epic_superadministrators | sort | join(',') }}"
+      - epic-superadmins
+  vars:
+    current_members: >-
+      {{ ansible_facts.getent_group['epic-superadmins'][2].split(',')
+         | reject('equalto', '') | sort }}
+  when: current_members != (epic_superadministrators | sort)
+  changed_when: true
+
+- name: Install restricted sudo permissions for cluster operators
+  ansible.builtin.template:
+    src: epic-operators.sudoers.j2
+    dest: /etc/sudoers.d/epic-operators
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Grant declared operators Slurm scheduling authority
+  # SlurmDB records this privilege independently of Linux sudo. Operators can
+  # manage jobs and node state, but remain unable to change SlurmDB policy.
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --immediate
+      - modify
+      - user
+      - where
+      - "Name={{ item }}"
+      - set
+      - AdminLevel=Operator
+  loop: "{{ epic_operators }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Revoke Slurm scheduling authority from former operators
+  # Every managed cluster user is explicitly either an Operator or None. This
+  # prevents a removed administrator from retaining Slurm control-plane access.
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --immediate
+      - modify
+      - user
+      - where
+      - "Name={{ item }}"
+      - set
+      - AdminLevel=None
+  loop: "{{ cluster_operator_user_names | difference(epic_operators) | sort }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: not ansible_check_mode
