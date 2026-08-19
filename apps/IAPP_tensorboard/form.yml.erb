@@ -20,7 +20,6 @@ cluster: epic
 form:
   - resource_partition
   - cpus
-  - gpus
   - memory
   - bc_num_hours
   - logdir
@@ -35,7 +34,6 @@ attributes:
     options:
 <% partitions.each do |name, config| %>
 <%   cpu_max = config['cpu_max'].to_i %>
-<%   gpu_max = config['gpu_max'].to_i %>
 <%   memory_max = config['mem_max_gb'].to_i %>
       - - '<%= yaml_quote(config['label'] || name) %>'
         - '<%= yaml_quote(config['partition'] || name) %>'
@@ -43,11 +41,6 @@ attributes:
           data-max-cpus: <%= cpu_max %>
           data-label-memory: 'Memory (GB, 1-<%= memory_max %>)'
           data-max-memory: <%= memory_max %>
-          data-hide-gpus: <%= gpu_max <= 0 %>
-          data-label-gpus: 'GPUs (<%= gpu_max <= 0 ? 0 : 1 %>-<%= gpu_max %>)'
-          data-min-gpus: <%= gpu_max <= 0 ? 0 : 1 %>
-          data-max-gpus: <%= gpu_max %>
-          data-set-gpus: <%= gpu_max <= 0 ? 0 : 1 %>
 <% end %>
 
   cpus:
@@ -56,13 +49,6 @@ attributes:
     value: 2
     min: 1
     max: 128
-
-  gpus:
-    label: GPUs
-    widget: number_field
-    value: 0
-    min: 0
-    max: 8
 
   memory:
     label: Memory (GB)

@@ -42,3 +42,6 @@ ood_dashboard_pinned_apps:
   - sys/LINK_grafana
   - sys/activejobs
   - sys/myjobs
+  - sys/projects
+  - sys/files
+  
