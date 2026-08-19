@@ -3,7 +3,18 @@
 > 目标：3 分钟跑起来一个任务
 
 ## 1) 登录与入口
-- 打开 OOD 门户：[Open Ondemand](http://222.20.76.128)
+- 首次访问前，将下面一行加入本机 hosts 文件：
+
+  ```text
+  172.16.2.182 epic-cluster-controller-01
+  ```
+
+  Linux/macOS 修改 `/etc/hosts`；Windows 修改
+  `C:\Windows\System32\drivers\etc\hosts`。保存后打开 OOD 门户：
+  [Open OnDemand](https://epic-cluster-controller-01/)。
+
+- Grafana 使用同一个主机名：
+  [Grafana](http://epic-cluster-controller-01:3000/)
 - “Interactive Apps” 里选择需要的应用：**Jupyter** / **Code-Server** / **Shell** / **Script**
 
 ## 2) 提交作业（Slurm）

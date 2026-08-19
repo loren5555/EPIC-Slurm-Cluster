@@ -1451,6 +1451,15 @@ http://epic-cluster-controller-01:3000/
 - Grafana 作为 OOD 导航入口；Prometheus 不直接暴露在 OOD 菜单中。
 - OOD 中的 Grafana 入口固定使用 `epic-cluster-controller-01:3000`。访问 OOD 的客户端必须通过 DNS 或本机 hosts 将 `epic-cluster-controller-01` 解析到当前可访问的控制节点 IP；只修改集群节点的 `/etc/hosts` 对用户浏览器无效。
 
+用户端没有 DNS 时，可将下面一行复制到本机 hosts 文件。当前控制节点校园网地址为 `172.16.2.182`：
+
+```text
+172.16.2.182 epic-cluster-controller-01
+```
+
+Linux/macOS 修改 `/etc/hosts`；Windows 修改
+`C:\Windows\System32\drivers\etc\hosts`。控制节点 IP 变化时，只需更新这一行，OOD 和 Grafana 继续使用同一个主机名。
+
 ### 13.2 控制节点手工安装
 
 先安装 OOD 4.2 的 Ubuntu 26.04（Resolute）软件源和运行依赖：

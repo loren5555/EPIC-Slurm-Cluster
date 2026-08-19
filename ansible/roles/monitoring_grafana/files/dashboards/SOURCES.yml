@@ -16,6 +16,9 @@ upstream:
   - file: upstream/grafana-internal-metrics.json
     source: https://grafana.com/grafana/dashboards/24838-grafana-internal-metrics/
     revision: 1
+  - file: upstream/prometheus-all-metrics.json
+    source: https://grafana.com/grafana/dashboards/19268-prometheus/
+    revision: 1
 
 community_references:
   - file: community-references/slurm-native-openmetrics.json
