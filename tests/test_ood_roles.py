@@ -166,6 +166,18 @@ class OODRoleTests(unittest.TestCase):
         self.assertNotIn("disk_quota_status.rc != 0", tasks)
         self.assertIn("select('match', '^user quota on .* is on$')", tasks)
 
+    def test_controller_home_quota_is_managed_with_a_soft_limit_only(self) -> None:
+        playbook = read_ansible_file("playbooks/disk_quotas.yml")
+        controller = read_ansible_file(
+            "inventory/host_vars/epic-cluster-controller-01.yml"
+        )
+
+        self.assertIn("controllers:compute_nodes", playbook)
+        self.assertIn("filesystem: /home", controller)
+        self.assertIn("soft_gib: 5", controller)
+        self.assertIn("hard_gib: 0", controller)
+        self.assertIn("grace_period_seconds: 259200", controller)
+
     def test_quota_widget_aggregates_hosts_and_marks_stale_reports(self) -> None:
         widget = read_ansible_file(
             "roles/ood_controller/templates/epic_disk_quota_status.html.erb.j2"

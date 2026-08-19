@@ -1,7 +1,8 @@
 ---
-# Maintain per-node filesystem quota policy after identity convergence.
+# Maintain filesystem quota policy after identity convergence. Only hosts that
+# declare disk_quotas run the role, so future infrastructure hosts stay idle.
 - name: Maintain local filesystem quota policy
-  hosts: compute_nodes
+  hosts: controllers:compute_nodes
   become: true
   vars_files:
     - ../vars/users.yml

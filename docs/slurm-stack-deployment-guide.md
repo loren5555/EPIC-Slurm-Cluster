@@ -1603,7 +1603,7 @@ A100 节点的 `/home` 和 `/workspace` 是独立的本地 ext4 文件系统，�
 - 配额只限制块空间，不限制文件数量；
 - `/workspace` 是无备份 RAID0，只用于环境、缓存和可再生数据。
 
-首次启用文件系统配额需要手工完成，Ansible 不修改 `fstab`，不执行 `quotacheck`，不自动 remount：
+首次启用文件系统配额需要手工完成，Ansible 不修改 `fstab`，不执行 `quotacheck`，不自动 remount。A100 的 `/home` 和 `/workspace` 按以下流程初始化；控制节点也必须对 `/home` 完成相同的 `usrquota`、`quotacheck` 与 `quotaon` 初始化后，才能执行配额 playbook：
 
 ```bash
 # 确认文件系统类型和挂载参数
@@ -1625,6 +1625,8 @@ sudo edquota -t -f /workspace      # Block grace period: 7days
 cd /srv/epic/repos/EPIC-Slurm-Cluster/ansible
 ansible-playbook playbooks/disk_quotas.yml
 ```
+
+控制节点的策略定义在 `ansible/inventory/host_vars/epic-cluster-controller-01.yml`：所有受管用户的 `/home` 软限额为 `5 GiB`、无硬限额、宽限期为 3 天。它是临时中转空间，不应用于长期保存数据。
 
 该 role 只负责持续设置用户 soft/hard limit 和宽限期。每个启用配额管理的计算节点每 5 分钟生成一份以完整主机名命名的 JSON，例如 `epic-cluster-compute-a100-01.json`。OOD Dashboard 自动扫描目录并按“主机 · 文件系统”展示；报告超过 15 分钟未更新时标记为“数据已过期”。新增节点无需修改 OOD 主机列表。超过 soft 限额的 80% 时开始提示。检查结果：
 

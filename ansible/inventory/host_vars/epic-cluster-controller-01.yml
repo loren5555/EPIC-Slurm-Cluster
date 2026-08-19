@@ -1,0 +1,9 @@
+---
+# The controller is a small shared staging area, not a data store. A soft-only
+# limit allows short file transfers while preventing unattended Home growth
+# from exhausting the system disk and interrupting cluster services.
+disk_quotas:
+  - filesystem: /home
+    soft_gib: 5
+    hard_gib: 0
+    grace_period_seconds: 259200
