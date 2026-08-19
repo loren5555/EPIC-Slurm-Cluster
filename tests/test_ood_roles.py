@@ -140,6 +140,11 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("announcements.d", tasks)
         self.assertIn("dismissible: true", dismissible)
         self.assertIn("dismissible: false", persistent)
+        for announcement in (dismissible, persistent):
+            self.assertIn("id:", announcement)
+            self.assertIn("type:", announcement)
+            self.assertIn("msg: |", announcement)
+            self.assertNotIn("content: |", announcement)
 
     def test_quota_reports_are_independent_per_compute_host(self) -> None:
         variables = read_ansible_file("inventory/group_vars/all/ood.yml")
