@@ -169,6 +169,15 @@
     mode: "0644"
   notify: Restart all user PUNs
 
+- name: Install the required EPIC user documentation announcement
+  ansible.builtin.template:
+    src: announcement-required-docs.yml.j2
+    dest: "{{ ood_configuration_directory }}/announcements.d/epic-user-documentation.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart all user PUNs
+
 - name: Point Batch Connect at the shared dataroot
   ansible.builtin.template:
     src: dashboard.env.j2

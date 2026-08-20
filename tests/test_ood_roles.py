@@ -42,6 +42,7 @@ class OODRoleTests(unittest.TestCase):
             "roles/ood_controller/templates/ondemand_exporter.service.j2",
             "roles/ood_controller/templates/announcement-dismissible.yml.j2",
             "roles/ood_controller/templates/announcement-persistent.yml.j2",
+            "roles/ood_controller/templates/announcement-required-docs.yml.j2",
             "roles/ood_compute/tasks/main.yml",
             "roles/ood_compute/templates/srv-epic-ood.mount.j2",
             "roles/ood_compute/templates/srv-epic-ood.automount.j2",
@@ -101,6 +102,9 @@ class OODRoleTests(unittest.TestCase):
         persistent = read_ansible_file(
             "roles/ood_controller/templates/announcement-persistent.yml.j2"
         )
+        required_docs = read_ansible_file(
+            "roles/ood_controller/templates/announcement-required-docs.yml.j2"
+        )
 
         self.assertIn('/etc/ood/auth/htpasswd', portal)
         self.assertIn("AuthType Basic", portal)
@@ -140,7 +144,15 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("announcements.d", tasks)
         self.assertIn("dismissible: true", dismissible)
         self.assertIn("dismissible: false", persistent)
-        for announcement in (dismissible, persistent):
+        self.assertIn("required: true", required_docs)
+        self.assertIn("dismissible: true", required_docs)
+        self.assertIn("button_text: 我已阅读，开始使用", required_docs)
+        self.assertIn(
+            "https://loren5555.github.io/EPIC-Slurm-Cluster/user/", required_docs
+        )
+        self.assertIn("src: announcement-required-docs.yml.j2", tasks)
+        self.assertIn("announcements.d/epic-user-documentation.yml", tasks)
+        for announcement in (dismissible, persistent, required_docs):
             self.assertIn("id:", announcement)
             self.assertIn("type:", announcement)
             self.assertIn("msg: |", announcement)
