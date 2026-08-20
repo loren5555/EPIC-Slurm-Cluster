@@ -1,6 +1,5 @@
 ---
-name: Slurm array job
+name: Parameter sweep array job
 host: epic
 script: job.sh
-notes: Run the same command for several task indexes with bounded concurrency.
-
+notes: Run one parameters.txt line per array task with bounded concurrency and optional full or shared GPU resources.

@@ -28,7 +28,7 @@ EPIC 有两种任务入口：Interactive Apps 适合调试和交互式工作；J
 1. 登录 OOD。
 2. 打开 **Job Composer**。
 3. 点击 **New Job**，选择 **From Template**。
-4. 选择 `Basic Slurm job`、`GPU Slurm job` 或 `Slurm array job`。
+4. 选择 `GPU Slurm job` 或 `Slurm array job`。
 5. 设置任务名称，点击**Create New Job**。
 
 **Composer**创建的是一份可编辑的作业目录，不会立即提交任务。创建后先检查脚本，再点击提交。注意Job的目录大小<span style="color:red">不能超过65kb</span>.

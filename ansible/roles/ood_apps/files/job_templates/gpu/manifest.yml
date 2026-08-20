@@ -1,6 +1,5 @@
 ---
-name: GPU Slurm job
+name: GPU training job
 host: epic
 script: job.sh
-notes: Request one GPU. Select a partition on which your account has access.
-
+notes: Ready-to-edit GPU training script with full-GPU, shared-GPU, CPU oversubscription, logging, and runtime diagnostics.
