@@ -26,7 +26,9 @@ class ClusterOperatorRoleTests(unittest.TestCase):
         self.assertIn("liuhongbo", manifest)
         self.assertIn("cluster_operator", playbook)
 
-    def test_sudoers_uses_fixed_playbooks_and_managed_ood_users(self) -> None:
+    def test_sudoers_accepts_any_valid_ood_username_for_fixed_password_file(
+        self,
+    ) -> None:
         template = read_ansible_file(
             "roles/cluster_operator/templates/epic-operators.sudoers.j2"
         )
@@ -36,9 +38,28 @@ class ClusterOperatorRoleTests(unittest.TestCase):
         self.assertIn("'ood.yml'", template)
         self.assertNotIn("'site.yml'", template)
         self.assertIn("/usr/bin/htpasswd", template)
-        self.assertIn("cluster_users", template)
+        self.assertIn("^[a-z_][a-z0-9_.-]*$", template)
+        self.assertNotIn("cluster_users | map(attribute='name')", template)
         self.assertIn("NOPASSWD: EPIC_GIT, EPIC_ANSIBLE, EPIC_OOD_PASSWORD", template)
         self.assertIn("%epic-superadmins ALL=(ALL:ALL) ALL", template)
+
+    def test_user_onboarding_includes_all_noninteractive_user_configuration(
+        self,
+    ) -> None:
+        playbook = read_ansible_file("playbooks/user_onboarding.yml")
+        imports = (
+            "users.yml",
+            "ssh_access.yml",
+            "slurm_associations.yml",
+            "disk_quotas.yml",
+            "ood.yml",
+        )
+
+        expected_sequence = "\n".join(
+            f"- import_playbook: {playbook_name}" for playbook_name in imports
+        )
+
+        self.assertIn(expected_sequence, playbook)
 
     def test_role_grants_declared_operators_slurm_operator_level(self) -> None:
         tasks = read_ansible_file("roles/cluster_operator/tasks/main.yml")

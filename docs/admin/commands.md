@@ -41,7 +41,7 @@ ANSIBLE_CONFIG=/srv/epic/repos/EPIC-Slurm-Cluster/ansible/ansible.cfg
 | `monitoring.yml`         | 发布监控配置和服务状态                      |
 | `grafana.yml`            | 发布 Grafana 配置和仪表盘 provisioning      |
 | `ood.yml`                | 发布 OOD 门户、IAPP 和 Remote Files 配置    |
-| `user_onboarding.yml`    | 一次完成身份、SSH 和 Slurm Association 收敛 |
+| `user_onboarding.yml`    | 一次完成身份、SSH、Slurm、配额和 OOD 收敛   |
 
 每个工作包有两种固定调用方式：检查模式和正式执行。以身份同步为例：
 
@@ -62,7 +62,8 @@ sudo /usr/bin/env \
 
 ### 新用户一键配置
 
-用户清单合并到控制节点的 `main` 分支后，可使用组合 playbook 一次完成身份、SSH 和 Slurm Association：
+用户清单合并到控制节点的 `main` 分支后，可使用组合 playbook 一次完成身份、SSH、
+Slurm Association、磁盘配额和 OOD 用户配置：
 
 ```bash
 sudo /usr/bin/env \
@@ -77,14 +78,23 @@ sudo /usr/bin/env \
   /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/user_onboarding.yml
 ```
 
-该组合按 `users.yml`、`ssh_access.yml`、`slurm_associations.yml` 的顺序执行。完成后，用户可以在已授权分区提交 Slurm 任务；OOD 密码仍使用本页末尾的命令单独设置。
+该组合按以下固定顺序执行：
+
+```text
+users.yml → ssh_access.yml → slurm_associations.yml → disk_quotas.yml → ood.yml
+```
+
+完成后，用户可以在已授权分区提交 Slurm 任务，并能在 OOD 中看到对应主机和
+Remote Files 配置。OOD 密码仍使用本页末尾的命令单独设置。
 
 ## 修改 OOD 密码
 
-管理员可以为身份清单中的已有用户重置 OOD 密码：
+管理员可以为任意语法合法的 OOD 用户名创建或重置密码，不需要先重新发布
+sudoers 用户名单：
 
 ```bash
 sudo /usr/bin/htpasswd /etc/ood/auth/htpasswd <username>
 ```
 
-密码输入保持交互式，密码哈希只写入控制节点的 htpasswd 文件。OOD 密码与 Linux 密码、SSH 密钥相互独立。
+密码输入保持交互式，密码哈希只写入控制节点的 htpasswd 文件。OOD 密码与
+Linux 密码、SSH 密钥和 Slurm 权限相互独立。

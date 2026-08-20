@@ -1,8 +1,9 @@
 ---
-# Onboard a declared user through identity, SSH, and Slurm authorization.
+# Onboard a declared user through identity, SSH, Slurm, quota, and OOD setup.
 # The source-of-truth manifests must be updated before this entry point runs.
 # OOD passwords and external Git operations remain separate administrator tasks.
 - import_playbook: users.yml
 - import_playbook: ssh_access.yml
 - import_playbook: slurm_associations.yml
 - import_playbook: disk_quotas.yml
+- import_playbook: ood.yml

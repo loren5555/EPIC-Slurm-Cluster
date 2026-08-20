@@ -65,6 +65,7 @@ command. The initial permitted playbooks are:
 - `monitoring.yml`
 - `grafana.yml`
 - `ood.yml`
+- `user_onboarding.yml`
 
 `site.yml` is intentionally excluded from operator sudoers permissions. It
 changes multiple subsystems in one invocation and remains restricted to
@@ -123,10 +124,34 @@ policy files, then synchronized by Ansible.
 Linux passwords remain locked. OOD passwords are independent credentials and
 are not committed to Git. Operators reset them with the native interactive
 command `sudo htpasswd /etc/ood/auth/htpasswd <username>`. Ansible renders a
-sudoers regular expression from `cluster_users`, so the command accepts only
-an existing declared cluster username and that one fixed password file.
-Operators must not receive generic `passwd`, `usermod`, `useradd`, `userdel`,
-`gpasswd`, or generic `htpasswd` sudo permissions.
+sudoers regular expression that accepts one syntactically valid username and
+that one fixed password file. The username does not need to exist in
+`cluster_users`: an OOD password entry grants portal authentication only and
+does not grant Linux, SSH, or Slurm access. Operators must not receive generic
+`passwd`, `usermod`, `useradd`, `userdel`, `gpasswd`, or a password-file path
+chosen at runtime.
+
+## New User Onboarding
+
+`user_onboarding.yml` is the operator-facing entry point for all non-interactive
+new-user configuration. It imports the following reviewed playbooks in order:
+
+1. `users.yml`
+2. `ssh_access.yml`
+3. `slurm_associations.yml`
+4. `disk_quotas.yml`
+5. `ood.yml`
+
+This sequence creates the Linux identity, distributes SSH access, converges
+Slurm authorization, applies filesystem quotas, and refreshes the OOD partition
+menu and Remote Files configuration. The interactive OOD password command runs
+afterward and remains separate from Ansible.
+
+The administrator documentation includes a complete copyable `users.yml`
+entry containing `name`, `uid`, `gid`, `slurm_account`, `home`, `shell`,
+`groups`, and `ssh_access`. Partition policy is changed only when the user's
+Account is not already authorized or the target partition uses explicit
+per-user authorization.
 
 ## Audit and Boundaries
 
