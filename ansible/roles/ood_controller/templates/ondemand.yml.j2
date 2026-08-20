@@ -31,3 +31,11 @@ bc_clean_old_dirs_days: {{ ood_session_retention_days }}
 cancel_session_enabled: true
 upload_enabled: true
 download_enabled: true
+
+# Every new Project Manager launcher must select a Slurm account and partition.
+# These automatic fields obtain their choices from Slurm instead of accepting
+# free-form account or queue names.
+launcher_default_items:
+  - auto_accounts
+  - auto_queues
+  - bc_num_hours

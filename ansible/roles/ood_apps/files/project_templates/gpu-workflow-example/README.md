@@ -1,14 +1,8 @@
 # GPU Workflow Example
 
-This is a read-only shared Project Manager example. Import it in Open
-OnDemand with **Import a shared project** and this absolute path:
-
-```text
-/srv/epic/ood/project_templates/gpu-workflow-example
-```
-
-Do not run or edit the shared copy. Create your own Project Manager project,
-open it in the Files app, and copy this example into that project first.
+This is a Project Manager template. In Open OnDemand, select **Create a new
+project**, choose **GPU Workflow Example**, then create your own private copy.
+The system-owned source is never edited by users.
 
 ## What this project demonstrates
 

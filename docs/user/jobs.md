@@ -164,26 +164,19 @@ chmod u+x ~/projects/my-project/scripts/*.sh
 
 注意虽然程序运行在计算节点，但是代码是存储在控制节点的。注意控制节点的5Gb存储限额。
 
-### 2. 导入共享示例模板
+### 2. 从示例模板创建项目
 
-集群提供了一个只读的 GPU 三阶段工作流示例。它包含预处理、训练和评测
-脚本，用于演示 Project Manager 的 Launcher、Workflow、GPU 资源申请和
+集群提供 **GPU Workflow Example** 模板，包含预处理、训练和评测脚本，用于
+演示 Project Manager 的 Launcher、Workflow、GPU 资源申请和
 `OOD_WORKFLOW_SYNC_KEY` 输出隔离。
 
-1. 在 Project Manager 首页展开 **Import a shared project**。
-2. 输入或通过 **Select Path** 选择以下绝对路径：
+1. 在 Project Manager 首页点击 **Create a new project**。
+2. 选择 **GPU Workflow Example**，填写新项目名称后保存。
+3. OOD 会为你创建可写的私有副本；打开项目中的 `README.md` 和 `scripts/`，
+   再按自己的实验修改代码和配置。
 
-   ```text
-   /srv/epic/ood/project_templates/gpu-workflow-example
-   ```
-
-3. 点击 **Import**。这只会在你的 Projects 页面添加该目录的入口，不会复制、
-   移动或修改其中的文件。
-4. 打开该项目阅读 `README.md` 和 `scripts/`；随后创建一个自己的项目，使用
-   **Open in files app** 将示例文件复制到自己的项目目录。
-
-共享示例由系统维护，所有用户看到的是同一份内容，不要直接在其中运行或编辑。
-你的副本才是创建 Launcher、修改脚本、保存配置和输出的位置。
+模板由系统维护，你的项目副本才是创建 Launcher、修改脚本、保存配置和输出的
+位置。
 
 示例项目的推荐 Workflow 为：
 
@@ -191,9 +184,10 @@ chmod u+x ~/projects/my-project/scripts/*.sh
 Preprocess  →  Train  →  Evaluate
 ```
 
-其中只有 `Train` 通常需要 GPU；默认选择完整 GPU，小任务才选择 GPU shard。
-每次 Workflow 运行的文件会写入 `outputs/<OOD_WORKFLOW_SYNC_KEY>/`，因此多个
-工作流不会覆盖彼此的中间结果。
+其中只有 `Train` 通常需要 GPU；默认 Launcher 会包含 Account 与 Queue 下拉
+字段。Queue 即目标计算分区，选择 A100 或 RTX 4070 主机对应的分区。每次
+Workflow 运行的文件会写入 `outputs/<OOD_WORKFLOW_SYNC_KEY>/`，因此多个工作流
+不会覆盖彼此的中间结果。
 
 ### 3. 创建 Launcher
 

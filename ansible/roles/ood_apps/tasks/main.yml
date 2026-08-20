@@ -70,10 +70,10 @@
     mode: preserve
   notify: Restart all user PUNs
 
-- name: Publish EPIC shared Project Manager examples
+- name: Publish EPIC Project Manager templates
   ansible.builtin.copy:
     src: project_templates/
-    dest: "{{ ood_shared_root }}/project_templates/"
+    dest: "{{ ood_configuration_directory }}/apps/dashboard/projects/"
     owner: root
     group: root
     mode: preserve
