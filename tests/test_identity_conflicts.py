@@ -62,6 +62,30 @@ class IdentityConflictTests(unittest.TestCase):
 
         self.assertEqual(conflicts, [])
 
+    def test_reports_all_manifest_numeric_id_conflicts(self) -> None:
+        users = [
+            {"name": "alice", "uid": 10000, "gid": 10000},
+            {"name": "bob", "uid": 10000, "gid": 10001},
+            {"name": "carol", "uid": 10002, "gid": 10001},
+        ]
+        access_groups = [
+            {"name": "EPIC-RL", "gid": 20000},
+            {"name": "CGCL", "gid": 20000},
+            {"name": "shared-private", "gid": 10000},
+        ]
+
+        conflicts = identity_conflicts(users, access_groups, {}, {})
+
+        self.assertEqual(
+            conflicts,
+            [
+                "UID 10000 is assigned to multiple manifest users: alice, bob",
+                "GID 10000 is assigned to multiple manifest groups: alice, shared-private",
+                "GID 10001 is assigned to multiple manifest groups: bob, carol",
+                "GID 20000 is assigned to multiple manifest groups: CGCL, EPIC-RL",
+            ],
+        )
+
     def test_reports_name_and_numeric_conflicts_together(self) -> None:
         self.passwd["huodongkun"] = [
             "x",

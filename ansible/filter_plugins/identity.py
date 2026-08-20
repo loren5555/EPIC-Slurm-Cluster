@@ -198,6 +198,34 @@ def identity_conflicts(
 
     conflicts: list[str] = []
 
+    manifest_users_by_uid: dict[int, set[str]] = {}
+    for user in cluster_users:
+        uid = int(user["uid"])
+        manifest_users_by_uid.setdefault(uid, set()).add(str(user["name"]))
+
+    for uid, names in sorted(manifest_users_by_uid.items()):
+        if len(names) > 1:
+            conflicts.append(
+                f"UID {uid} is assigned to multiple manifest users: "
+                f"{', '.join(sorted(names))}"
+            )
+
+    desired_groups = [
+        {"name": user["name"], "gid": user["gid"]}
+        for user in cluster_users
+    ] + list(access_groups)
+    manifest_groups_by_gid: dict[int, set[str]] = {}
+    for group in desired_groups:
+        gid = int(group["gid"])
+        manifest_groups_by_gid.setdefault(gid, set()).add(str(group["name"]))
+
+    for gid, names in sorted(manifest_groups_by_gid.items()):
+        if len(names) > 1:
+            conflicts.append(
+                f"GID {gid} is assigned to multiple manifest groups: "
+                f"{', '.join(sorted(names))}"
+            )
+
     # Reverse indexes detect a desired UID or GID already owned by another name,
     # including identities not listed in the managed manifest. Failing before
     # mutation is important because changing a live numeric identity can make
@@ -247,11 +275,6 @@ def identity_conflicts(
 
     # Private groups and supplementary access groups share the same GID conflict
     # rules, so combine them before validation.
-    desired_groups = [
-        {"name": user["name"], "gid": user["gid"]}
-        for user in cluster_users
-    ] + list(access_groups)
-
     for group in desired_groups:
         name = str(group["name"])
         expected_gid = int(group["gid"])
