@@ -143,12 +143,21 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("cluster_users", tasks)
         self.assertIn("announcements.d", tasks)
         self.assertIn("dismissible: true", dismissible)
+        self.assertIn("GPU 共享与 CPU 超分已开放", dismissible)
+        self.assertIn(
+            "https://loren5555.github.io/EPIC-Slurm-Cluster/user/queue/", dismissible
+        )
         self.assertIn("dismissible: false", persistent)
+        self.assertIn("EPIC 集群使用入口", persistent)
+        self.assertIn(
+            "https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose",
+            persistent,
+        )
         self.assertIn("required: true", required_docs)
         self.assertIn("dismissible: true", required_docs)
         self.assertIn("button_text: 我已阅读，开始使用", required_docs)
         self.assertIn(
-            "https://loren5555.github.io/EPIC-Slurm-Cluster/user/", required_docs
+            "](https://loren5555.github.io/EPIC-Slurm-Cluster)", required_docs
         )
         self.assertIn("src: announcement-required-docs.yml.j2", tasks)
         self.assertIn("announcements.d/epic-user-documentation.yml", tasks)
