@@ -1,10 +1,16 @@
 ---
-# Full convergence entry point. Identities must exist before SSH authorization.
+# Full convergence entry point. The order is a dependency graph, not a list of
+# unrelated roles: identity must exist before SSH keys, and accounting policy
+# must exist before Slurm can enforce it. Operators normally run one focused
+# playbook; this entry point is reserved for a superadministrator because it
+# changes several subsystems in one invocation.
 - import_playbook: users.yml  # Identity related settings.
 - import_playbook: ssh_access.yml  # Cluster SSH keys and per-host access.
 - import_playbook: slurmdbd.yml  # Local accounting database and daemon.
 - import_playbook: slurm_associations.yml  # Accounts, QoS, and host permissions.
 - import_playbook: administrators.yml  # Controller operator groups and authority.
+# Enforcement follows the database and Association declarations above. Running
+# slurm.yml earlier would make an incomplete authorization matrix user-visible.
 - import_playbook: slurm.yml  # Enable enforcement only after database policy.
 - import_playbook: grafana.yml  # Dashboard service must exist before it is scraped.
 - import_playbook: monitoring.yml  # Exporters and local Prometheus storage.

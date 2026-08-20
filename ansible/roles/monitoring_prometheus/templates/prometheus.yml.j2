@@ -1,4 +1,9 @@
-# This file is managed by Ansible. Targets use stable inventory hostnames.
+# This file is managed by Ansible. Targets use stable inventory hostnames so an
+# inventory IP change does not become a second monitoring configuration.
+# Fast exporters are sampled frequently; Slurm state and OOD are intentionally
+# slower because their endpoints query or summarize scheduler state.
+# Slurm's high-cardinality user/account endpoint is omitted; historical
+# reporting comes from the bounded collector and SlurmDBD.
 global:
   scrape_interval: {{ monitoring_prometheus_scrape_interval }}
   scrape_timeout: {{ monitoring_slow_scrape_timeout }}

@@ -19,7 +19,8 @@ def access_group_members(
     """Return manifest users assigned to one access group."""
 
     # Group membership is stored only on users; access_groups deliberately does
-    # not duplicate a members list.
+    # not duplicate a members list. This keeps the manifest from having two
+    # competing sources of truth for the same Linux supplementary group.
     return [
         str(user["name"])
         for user in cluster_users
@@ -34,8 +35,10 @@ def ssh_authorized_users(
 ) -> list[str]:
     """Return users whose managed cluster key belongs on one host."""
 
-    # Controller access is implicit for every cluster user. Compute-node access
-    # must be explicitly listed with the stable inventory hostname.
+    # Controller access is implicit for every cluster user because OOD and the
+    # local Slurm client run there. Compute-node access must be explicitly listed
+    # with the stable inventory hostname; Linux group membership alone is not an
+    # SSH authorization decision.
     is_controller = host_name in controller_hosts
     return [
         str(user["name"])
@@ -196,7 +199,9 @@ def identity_conflicts(
     conflicts: list[str] = []
 
     # Reverse indexes detect a desired UID or GID already owned by another name,
-    # including identities not listed in the managed manifest.
+    # including identities not listed in the managed manifest. Failing before
+    # mutation is important because changing a live numeric identity can make
+    # existing files and processes ambiguous.
     users_by_uid: dict[int, set[str]] = {}
     for name, fields in passwd_entries.items():
         for entry in _entry_records(fields, f"passwd:{name}"):

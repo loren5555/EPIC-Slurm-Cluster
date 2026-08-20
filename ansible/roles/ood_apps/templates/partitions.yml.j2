@@ -1,4 +1,8 @@
 ---
+# This file controls what the OOD form displays. It is derived from the same
+# manifests as Slurm Associations, but it is only a convenience filter: a
+# direct sbatch request is still authorized by Slurm. The friendly label is
+# for users; the complete host-name partition is the submitted value.
 # Generated from slurm_partitions, cluster_users, and hostvars. Slurm
 # Associations remain authoritative; this file only keeps the forms useful.
 {% for partition in slurm_partitions %}

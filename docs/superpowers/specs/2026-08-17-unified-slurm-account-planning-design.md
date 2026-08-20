@@ -1,5 +1,7 @@
 # Unified Slurm Account Planning Design
 
+> 当前架构决策记录，不是部署操作手册。实际操作请阅读 `docs/admin/deployment.md`。
+
 ## Goal
 
 Keep every rule about Slurm Account entities and their cluster-level

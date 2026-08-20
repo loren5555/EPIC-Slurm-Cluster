@@ -1,5 +1,7 @@
 # EPIC Prometheus and Exporters Design
 
+> 当前架构决策记录，不是部署操作手册。实际操作请阅读 `docs/admin/monitoring.md`。
+
 ## 1. Goal
 
 Work package 6 establishes local, real-time monitoring without making Slurm,

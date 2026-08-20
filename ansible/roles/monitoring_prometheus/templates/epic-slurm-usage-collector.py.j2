@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Export bounded Slurm queue and GPU allocation metrics for node_exporter."""
+"""Export bounded Slurm queue and GPU allocation metrics for node_exporter.
+
+The collector intentionally emits aggregate labels only. Job IDs, PIDs and
+commands would create high-cardinality time series and expose more process
+detail than Grafana needs. The output file is replaced only after every Slurm
+query succeeds, so a short SlurmDBD failure leaves the last complete snapshot
+visible instead of turning all dashboards into false zeroes.
+"""
 
 from __future__ import annotations
 
@@ -233,6 +240,9 @@ def collect_monthly_gpu_usage(
 ) -> dict[str, dict]:
     """Aggregate this calendar month's allocated GPU seconds from SlurmDBD."""
 
+    # This is allocated GPU time, not GPU utilization. DCGM and nvitop answer
+    # whether an allocated GPU is busy; SlurmDBD supplies the durable billing
+    # interval used for account and user reports.
     period = now.strftime("%Y-%m")
     start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     output = run_command(

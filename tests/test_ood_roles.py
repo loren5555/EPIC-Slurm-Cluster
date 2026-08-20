@@ -310,10 +310,7 @@ class OODApplicationTests(unittest.TestCase):
 
 class OODDocumentationTests(unittest.TestCase):
     def test_work_package_contains_the_complete_operator_procedure(self) -> None:
-        guide = read_repository_file("docs/slurm-stack-deployment-guide.md")
-        work_package = guide.split("## 13. 工作包 8：接入 OOD", maxsplit=1)[1].split(
-            "## 14. 新增计算节点流程", maxsplit=1
-        )[0]
+        work_package = read_repository_file("docs/admin/ood.md")
 
         for required in (
             "Open OnDemand 4.2",
@@ -329,7 +326,7 @@ class OODDocumentationTests(unittest.TestCase):
         ):
             self.assertIn(required, work_package)
 
-        self.assertTrue((REPOSITORY_ROOT / "docs/ood-compute-runtime.md").is_file())
+        self.assertTrue((REPOSITORY_ROOT / "docs/admin/ood.md").is_file())
 
 
 if __name__ == "__main__":

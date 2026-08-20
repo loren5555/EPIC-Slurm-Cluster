@@ -7,7 +7,7 @@ Cmnd_Alias EPIC_GIT = \
   /usr/bin/git -C {{ epic_deployment_repository }} pull --ff-only {{ epic_git_remote }} {{ epic_git_branch }}
 
 Cmnd_Alias EPIC_ANSIBLE = \
-{% for playbook in ['users.yml', 'ssh_access.yml', 'slurm.yml', 'slurm_associations.yml', 'disk_quotas.yml', 'monitoring.yml', 'grafana.yml', 'ood.yml'] %}
+{% for playbook in ['users.yml', 'ssh_access.yml', 'slurm.yml', 'slurm_associations.yml', 'disk_quotas.yml', 'monitoring.yml', 'grafana.yml', 'ood.yml', 'user_onboarding.yml'] %}
   /usr/bin/env ANSIBLE_CONFIG={{ epic_ansible_directory }}/ansible.cfg /usr/bin/ansible-playbook {{ epic_ansible_directory }}/playbooks/{{ playbook }}, \
   /usr/bin/env ANSIBLE_CONFIG={{ epic_ansible_directory }}/ansible.cfg /usr/bin/ansible-playbook {{ epic_ansible_directory }}/playbooks/{{ playbook }} --check{% if not loop.last %}, \
 {% endif %}

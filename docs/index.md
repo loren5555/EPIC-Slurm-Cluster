@@ -1,28 +1,19 @@
-# EPIC Cluster — Open OnDemand Guide
+# EPIC 集群文档
 
-# <span style="color:red;font-weight:bold;">【重要·必看】[A100服务器使用须知（点进去看呀，这个能点！）](./deployment.md)</span>
+EPIC 集群通过 Open OnDemand 提供网页入口，通过 Slurm 提交和管理计算任务。每台计算主机有自己的 Slurm 分区，用户应在提交时明确选择目标主机。
 
-> **快速链接**
-> - 🧭 Quick Start（面向用户）：[quick_start](./quick_start.md)
-> - 📖 使用说明 ： [A100服务器使用须知](./deployment.md)
-> - 🛠  Admin Doc（管理员）：[admin_doc](./admin_doc.md)
-> - 🧑‍💻 Developer Doc（开发/深度维护）：[developer_doc](./developer_doc.md)
-> - ❓ 提交 Issue（问题/需求/咨询）：[github仓库](https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose)
+## 按读者查找
 
-## 关于本平台
-- 前端：Open OnDemand（简称 OOD）
-- 调度：Slurm
-- 监控：基础统计报表已上线（暂无配额/限额）
-- IApp：Jupyter / Code-Server / Shell（功能简单，直接在各页标签内说明）
+- **用户**：从[用户文档](user/index.md)开始，了解登录、提交任务、存储和排障。
+- **管理员**：从[管理员文档](admin/index.md)开始，了解日常操作、部署、权限、监控和 OOD。
+- **开发者**：从[开发者文档](developer/index.md)开始，了解仓库、Ansible、IAPP 和文档维护。
 
-## 当前重要提示
-> ⚠️ 请务必阅读并遵守以下约束
+## 常用入口
 
-1. **/home 空间紧张**：`/home`仅用于存储代码与较小的环境。请将重要/大数据放入数据盘目录。
-2. **禁止修改驱动/底层 NVIDIA 组件**：严禁在服务器上在线安装/更新任何 NVIDIA 相关驱动、CUDA、NVIDIA Fabric Manager 等。违者可能导致**硬件锁死**与不可恢复风险。
-3. **`/workspace` 为 RAID0、无备份**：仅用于缓存/临时/可再生成数据。重要成果请自行异地/云盘备份。<span style="color:red;font-weight:bold;">现在`/workspace`也紧张了，冷数据向`/data`的网盘里放。后面`/workspace`如果清理不出来，会从60天或30天没有被访问的数据开始清理。</span>
-5. **资源与队列策略（现阶段）**：
-    CPU：不限、不排队（请自觉使用合适核数）
-    GPU：排队（Slurm 队列）
-    内存/磁盘：暂不设限（请谨慎申请/占用，避免影响他人）
-    容器/ Docker：现有rootless docker 可用，具体方法查阅[developer_doc](./developer_doc.md)中的Link内Docker节。
+- [用户快速开始](user/quick-start.md)
+- [提交 Interactive App 和批处理任务](user/jobs.md)
+- [管理员日常操作](admin/operations.md)
+- [集群部署流程](admin/deployment.md)
+- [IAPP 开发](developer/apps.md)
+
+[提交 Issue](https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose) 前，请先查看对应读者文档并附上最小复现信息。

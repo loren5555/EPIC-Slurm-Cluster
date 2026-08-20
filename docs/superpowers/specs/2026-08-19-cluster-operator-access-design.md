@@ -1,5 +1,7 @@
 # EPIC Cluster Operator Access Design
 
+> 当前架构决策记录，不是部署操作手册。实际操作请阅读 `docs/admin/access.md`。
+
 ## Purpose
 
 Define a practical, auditable administrator model for the EPIC cluster. The

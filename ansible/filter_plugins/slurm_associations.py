@@ -6,6 +6,9 @@ from collections import Counter
 
 
 def _association_key(association: dict) -> tuple[str, str, str]:
+    # Slurm identifies a user permission by Account, User, and Partition. Keep
+    # the partition in the key so a host-specific Association cannot be
+    # accidentally treated as a cluster-wide permission.
     return (
         association["account"],
         association["user"],
@@ -29,6 +32,8 @@ def _tres_names(value: str) -> set[str]:
 def _tres_update(desired: str, current: str) -> str:
     """Set desired TRES values and explicitly clear undeclared old values."""
 
+    # sacctmgr does not remove an old TRES when a new value is written. Emit an
+    # explicit -1 for stale names so the declared state really converges.
     desired_names = _tres_names(desired)
     stale_names = sorted(_tres_names(current) - desired_names)
     assignments = [assignment for assignment in desired.split(",") if assignment]
@@ -76,6 +81,10 @@ def build_desired_state(
 ) -> dict:
     """Build the complete declared account and partition-association state."""
 
+    # Account Associations describe organization-level shares and limits;
+    # user Associations below describe the partitions a person may use. They
+    # are intentionally represented separately even though both live in
+    # SlurmDBD.
     account_names = {account["name"] for account in accounts}
     member_counts = Counter(user["slurm_account"] for user in users)
     users_by_name = {user["name"]: user for user in users}
@@ -108,6 +117,9 @@ def build_desired_state(
         allowed_accounts = set(partition.get("allowed_accounts", []))
         allowed_users = set(partition.get("allowed_users", []))
         denied_users = set(partition.get("denied_users", []))
+        # This is the same policy used by OOD's generated menu. Slurm remains
+        # authoritative; the matrix is a plan and an audit artifact, not a
+        # replacement for controller-side Association checks.
         authorized_users = sorted(
             user["name"]
             for user in users
@@ -157,6 +169,9 @@ def plan_association_changes(
 ) -> dict:
     """Compare declared partition Associations with SlurmDBD state."""
 
+    # Only user Associations are planned here. Cluster-level Account
+    # Associations are handled by plan_account_changes so their fair-share and
+    # GrpTRES values cannot be confused with partition permissions.
     desired = {
         _association_key(association): association
         for association in desired_state["associations"]
@@ -315,6 +330,9 @@ def plan_user_default_changes(desired_state: dict, current_rows: list[str]) -> l
 def find_jobs_blocking_removals(removals: list[dict], job_rows: list[str]) -> list[dict]:
     """Match running or pending jobs to associations scheduled for removal."""
 
+    # Removing an Association can invalidate queued/running work. Report the
+    # exact blockers so an administrator can decide what to do before any
+    # destructive sacctmgr operation is attempted.
     blockers = []
     for row in job_rows:
         columns = row.split("|")

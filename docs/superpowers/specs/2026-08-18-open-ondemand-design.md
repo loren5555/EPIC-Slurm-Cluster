@@ -1,5 +1,7 @@
 # EPIC Open OnDemand Deployment Design
 
+> 当前架构决策记录，不是部署操作手册。实际操作请阅读 `docs/admin/ood.md`。
+
 ## Purpose
 
 Open OnDemand (OOD) is the browser entry point for convenient Slurm use. It

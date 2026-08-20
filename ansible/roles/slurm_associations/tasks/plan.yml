@@ -1,4 +1,7 @@
 ---
+# Planning deliberately reads the live SlurmDBD even in check mode. The
+# declaration alone cannot tell us whether an Account, QoS, or Association
+# already exists, nor whether a removal would affect an active job.
 - name: Read current Account metadata
   ansible.builtin.command:
     argv:
