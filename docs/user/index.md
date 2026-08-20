@@ -1,3 +1,10 @@
+---
+layout: default
+title: 用户文档
+nav_order: 3
+has_children: true
+---
+
 # 用户文档
 
 用户通常只需要记住一条路径：登录 OOD，选择目标主机和资源，提交任务，查看会话或日志。

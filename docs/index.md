@@ -1,3 +1,9 @@
+---
+layout: default
+title: 文档导航
+nav_order: 2
+---
+
 # EPIC 集群文档
 
 EPIC 集群通过 Open OnDemand 提供网页入口，通过 Slurm 提交和管理计算任务。每台计算主机有自己的 Slurm 分区，用户应在提交时明确选择目标主机。

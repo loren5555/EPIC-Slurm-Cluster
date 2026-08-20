@@ -1,3 +1,10 @@
+---
+layout: default
+title: 排队与优先级
+parent: 用户文档
+nav_order: 3
+---
+
 # 排队与优先级
 
 GPU 主机的任务需要通过 Slurm 排队。任务提交后，Slurm 会根据资源是否空闲、任务申请的资源大小、等待时间以及用户和 Account 的近期使用情况安排运行顺序。

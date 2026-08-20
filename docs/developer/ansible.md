@@ -1,3 +1,10 @@
+---
+layout: default
+title: Ansible 架构
+parent: 开发者文档
+nav_order: 2
+---
+
 # Ansible 架构
 
 ## 收敛顺序

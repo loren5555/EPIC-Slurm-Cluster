@@ -1,3 +1,10 @@
+---
+layout: default
+title: 快速开始
+parent: 用户文档
+nav_order: 1
+---
+
 # 快速开始
 
 ## 1. 打开 OOD

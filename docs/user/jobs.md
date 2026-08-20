@@ -1,3 +1,10 @@
+---
+layout: default
+title: 提交任务
+parent: 用户文档
+nav_order: 2
+---
+
 # 提交任务
 
 EPIC 有两种任务入口：Interactive Apps 适合调试和交互式工作；Job Composer 适合训练、批处理和需要运行较长时间的任务。

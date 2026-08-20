@@ -1,3 +1,9 @@
+---
+layout: default
+title: EPIC 集群
+nav_order: 1
+---
+
 # EPIC Slurm Cluster
 
 EPIC 是一个以 Open OnDemand 为网页入口、Slurm 为任务调度器的实验室计算集群。仓库包含集群配置、Ansible 部署代码、OOD Interactive Apps、监控配置和项目文档。

@@ -1,3 +1,10 @@
+---
+layout: default
+title: 管理员文档
+nav_order: 4
+has_children: true
+---
+
 # 管理员文档
 
 管理员负责使用者、作业和资源使用秩序。

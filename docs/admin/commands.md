@@ -1,3 +1,10 @@
+---
+layout: default
+title: 管理员可用命令
+parent: 管理员文档
+nav_order: 3
+---
+
 # 管理员可用命令
 
 业务管理员的命令权限由控制节点 `/etc/sudoers.d/epic-operators` 管理。Git 仓库操作和 Ansible 工作包均采用固定路径、固定参数和固定顺序。

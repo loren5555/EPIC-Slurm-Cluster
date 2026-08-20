@@ -1,3 +1,10 @@
+---
+layout: default
+title: IAPP 开发
+parent: 开发者文档
+nav_order: 3
+---
+
 # IAPP 开发
 
 每个应用位于 `apps/IAPP_<name>/`，常见文件如下：

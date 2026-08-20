@@ -1,3 +1,10 @@
+---
+layout: default
+title: 用户管理
+parent: 管理员文档
+nav_order: 1
+---
+
 # 用户管理
 
 管理员负责维护使用者名单、访问范围和使用权限。用户的 Linux 身份、SSH 主机权限、Slurm Account、分区 Association 和 OOD 账号分别对应不同配置入口。

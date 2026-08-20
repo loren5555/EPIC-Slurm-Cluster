@@ -1,1 +1,19 @@
-theme: jekyll-theme-minimal
+title: EPIC 集群文档
+description: EPIC Slurm Cluster 使用与维护文档
+url: https://loren5555.github.io
+baseurl: /EPIC-Slurm-Cluster
+
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+
+color_scheme: light
+search_enabled: true
+nav_enabled: true
+
+aux_links:
+  GitHub 仓库:
+    - https://github.com/loren5555/EPIC-Slurm-Cluster
+
+exclude:
+  - docs/superpowers

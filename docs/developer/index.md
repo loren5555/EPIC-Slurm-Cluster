@@ -1,3 +1,10 @@
+---
+layout: default
+title: 开发者文档
+nav_order: 5
+has_children: true
+---
+
 # 开发者与超级管理员文档
 
 这里面向维护 Ansible、OOD 应用、监控配置和站点策略的开发者与超级管理员。普通业务管理员请从[管理员文档](../admin/index.md)开始。
