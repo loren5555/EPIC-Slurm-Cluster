@@ -44,3 +44,14 @@
 采用最小定向测试，覆盖主机策略字段、Slurm/GRES 模板声明、OOD 分区元数据、
 GPU 下拉选项、GRES 映射和 CPU 共享 checkbox。只运行相关测试，不运行完整
 测试套件；所有变更保留在工作区，不创建提交。
+
+## 用户文档中的权重说明
+
+在 `docs/user/queue.md` 的“哪些因素会影响顺序”中，紧接 Fair-share 原理说明
+增加“资源如何计入 Fair-share”小节。使用表格列出两个分区的 CPU、完整 GPU
+和 shard 权重，并给出 `4 CPU + 1 A100 = 1.2` 的计算示例。
+
+该小节必须说明：权重用于累计 Fair-share 使用量，不是费用，也不会独立决定
+某个任务能否立即运行。其数值与主机变量中的 `slurm_tres_billing_weights`
+保持一致：CPU 为 `0.05`，完整 GPU 为 `1`，A100 shard 为 `0.25`，RTX 4070
+shard 为 `0.5`。

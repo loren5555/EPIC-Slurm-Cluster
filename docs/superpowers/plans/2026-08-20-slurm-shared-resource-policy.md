@@ -1,5 +1,7 @@
 # Slurm shared resource policy implementation plan
 
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
 **Goal:** Add opt-in CPU oversubscription, non-blocking memory accounting, GPU shards, and matching OOD controls for the A100 and RTX 4070 partitions.
 
 **Constraints:** Keep all changes uncommitted in the current workspace. Run only focused tests for this policy.
@@ -28,3 +30,16 @@
 - Run only the two focused shared-resource-policy test methods.
 - Inspect the final diff and working-tree status.
 - Do not commit.
+
+## Task 5: Explain Fair-share resource weights to users
+
+**Files:**
+
+- Modify: `docs/user/queue.md`
+
+- [x] Insert a `资源如何计入 Fair-share` subsection immediately after the existing Fair-share explanation.
+- [x] Add a table listing CPU `0.05`, full GPU `1`, A100 shard `0.25`, and RTX 4070 shard `0.5`.
+- [x] Add the example `4 × 0.05 + 1 = 1.2` for a job requesting four CPU cores and one full A100 GPU.
+- [x] State that these are accounting weights rather than prices and do not independently decide when a job starts.
+- [x] Run `rg -n "资源如何计入|0\\.05|0\\.25|0\\.5|1\\.2" docs/user/queue.md` and confirm every value is present.
+- [x] Run `git diff --check -- docs/user/queue.md` and leave the change uncommitted.
