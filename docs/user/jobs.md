@@ -145,6 +145,16 @@ python evaluate.py --index "${SLURM_ARRAY_TASK_ID}"
 4. 点击项目名称进入项目面板。
 5. 点击项目目录下的 **Open in files app**，在 OOD 文件管理器中上传脚本、配置文件和小型输入文件。
 
+创建项目时，**Directory 留空**，必须使用 OOD 自动给出的默认目录：
+
+```text
+/srv/epic/ood/users/<用户名>/ondemand/data/sys/dashboard/projects
+```
+
+不要改为控制节点本地的 `/home` 或计算节点本地的 `/workspace`。这个默认目录由
+OOD 共享存储提供，控制节点和计算节点使用相同的绝对路径；Project Manager 提交后，
+计算节点可以直接读取项目中的脚本和配置，无需额外复制。
+
 项目目录可以按自己的习惯组织，例如：
 
 ```text
@@ -162,7 +172,9 @@ my-project/
 chmod u+x ~/projects/my-project/scripts/*.sh
 ```
 
-注意虽然程序运行在计算节点，但是代码是存储在控制节点的。注意控制节点的5Gb存储限额。
+程序在计算节点运行，但项目目录通过 OOD 共享存储同时对控制节点和计算节点可见。
+项目目录只保存脚本、小型配置和少量工作流中间文件；大型数据、模型 checkpoint 和大量
+输出应写入 `/data` 或所选计算节点的 `/workspace`。
 
 ### 2. 从示例模板创建项目
 
