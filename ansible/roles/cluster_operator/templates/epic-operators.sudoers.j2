@@ -2,7 +2,7 @@
 Defaults:%epic-operators !setenv
 
 Cmnd_Alias EPIC_GIT = \
-  /usr/bin/git -C {{ epic_deployment_repository }} status --short, \
+  /usr/bin/git -C {{ epic_deployment_repository }} status, \
   /usr/bin/git -C {{ epic_deployment_repository }} log --oneline -n 20, \
   /usr/bin/git -C {{ epic_deployment_repository }} pull --ff-only {{ epic_git_remote }} {{ epic_git_branch }}
 

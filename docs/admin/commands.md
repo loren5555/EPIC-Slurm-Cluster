@@ -7,7 +7,7 @@
 ```bash
 sudo /usr/bin/git \
   -C /srv/epic/repos/EPIC-Slurm-Cluster \
-  status --short
+  status
 
 sudo /usr/bin/git \
   -C /srv/epic/repos/EPIC-Slurm-Cluster \
