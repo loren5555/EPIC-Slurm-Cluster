@@ -16,4 +16,4 @@ aux_links:
     - https://github.com/loren5555/EPIC-Slurm-Cluster
 
 exclude:
-  - docs/superpowers
+  - superpowers

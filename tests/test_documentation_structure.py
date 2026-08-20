@@ -24,7 +24,7 @@ class DocumentationStructureTests(unittest.TestCase):
         }
 
     def test_just_the_docs_theme_uses_builtin_github_pages(self) -> None:
-        configuration = (REPOSITORY_ROOT / "_config.yml").read_text(
+        configuration = (DOCUMENT_ROOT / "_config.yml").read_text(
             encoding="utf-8"
         )
 
@@ -34,7 +34,7 @@ class DocumentationStructureTests(unittest.TestCase):
             "search_enabled: true",
             "nav_enabled: true",
             "https://github.com/loren5555/EPIC-Slurm-Cluster",
-            "- docs/superpowers",
+            "- superpowers",
         ):
             self.assertIn(declaration, configuration)
 
