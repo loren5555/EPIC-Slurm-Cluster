@@ -7,7 +7,7 @@
   current_user = Etc.getlogin
   partitions.select! { |_name, config| Array(config['allowed_users']).include?(current_user) }
 
-  defaults = { 'cpu_max' => 4, 'gpu_max' => 0, 'mem_max_gb' => 16 }
+  defaults = { 'cpu_max' => 4, 'gpu_max' => 0, 'gpu_shards_per_gpu' => 0, 'mem_max_gb' => 16 }
   partitions.transform_values! { |config| defaults.merge(config || {}) }
 
   def yaml_quote(value)
@@ -20,7 +20,8 @@ cluster: epic
 form:
   - resource_partition
   - cpus
-  - gpus
+  - cpu_oversubscribe
+  - gpu_resource
   - memory
   - bc_num_hours
   - working_dir
@@ -35,7 +36,6 @@ attributes:
     options:
 <% partitions.each do |name, config| %>
 <%   cpu_max = config['cpu_max'].to_i %>
-<%   gpu_max = config['gpu_max'].to_i %>
 <%   memory_max = config['mem_max_gb'].to_i %>
       - - '<%= yaml_quote(config['label'] || name) %>'
         - '<%= yaml_quote(config['partition'] || name) %>'
@@ -43,11 +43,6 @@ attributes:
           data-max-cpus: <%= cpu_max %>
           data-label-memory: 'Memory (GB, 1-<%= memory_max %>)'
           data-max-memory: <%= memory_max %>
-          data-hide-gpus: <%= gpu_max <= 0 %>
-          data-label-gpus: 'GPUs (<%= gpu_max <= 0 ? 0 : 1 %>-<%= gpu_max %>)'
-          data-min-gpus: <%= gpu_max <= 0 ? 0 : 1 %>
-          data-max-gpus: <%= gpu_max %>
-          data-set-gpus: <%= gpu_max <= 0 ? 0 : 1 %>
 <% end %>
 
   cpus:
@@ -57,12 +52,40 @@ attributes:
     min: 1
     max: 128
 
-  gpus:
-    label: GPUs
-    widget: number_field
+  cpu_oversubscribe:
+    label: Accept shared CPU cores
+    widget: check_box
+    checked_value: 1
+    unchecked_value: 0
     value: 0
-    min: 0
-    max: 8
+    cacheable: false
+    help: The job may start sooner, but CPU performance can vary.
+
+  gpu_resource:
+    label: GPU resource
+    widget: select
+    value: 'gpu:1'
+    cacheable: false
+    options:
+<% partitions.each_with_index do |(name, config), index| %>
+<%   partition = config['partition'] || name %>
+<%   gpu_max = config['gpu_max'].to_i %>
+<%   shards_per_gpu = config['gpu_shards_per_gpu'].to_i %>
+      - - 'No GPU'
+        - 'none'
+        - data-alias-partition<%= index %>: '<%= yaml_quote(partition) %>'
+          data-exclusive-option-for-resource-partition-partition<%= index %>: true
+<%   1.upto([shards_per_gpu - 1, 0].max) do |shard_count| %>
+      - - 'Shared GPU (<%= shard_count %>/<%= shards_per_gpu %>)'
+        - 'shard:<%= shard_count %>'
+        - data-exclusive-option-for-resource-partition-partition<%= index %>: true
+<%   end %>
+<%   1.upto(gpu_max) do |gpu_count| %>
+      - - '<%= gpu_count %> full GPU<%= gpu_count == 1 ? "" : "s" %>'
+        - 'gpu:<%= gpu_count %>'
+        - data-exclusive-option-for-resource-partition-partition<%= index %>: true
+<%   end %>
+<% end %>
 
   memory:
     label: Memory (GB)

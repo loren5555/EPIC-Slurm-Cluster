@@ -60,10 +60,13 @@ class SlurmRoleTests(unittest.TestCase):
         self.assertNotIn("PartitionName=controlled", template)
         self.assertNotIn("PartitionName=free", template)
 
-    def test_slurm_configuration_declares_only_generic_gpu_resources(self) -> None:
+    def test_slurm_configuration_declares_generic_gpu_and_shard_resources(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
 
-        self.assertIn("Gres=gpu:{{ node.slurm_gpu_count }}", template)
+        self.assertIn(
+            "Gres=gpu:{{ node.slurm_gpu_count }},shard:{{ node.slurm_gpu_count * node.slurm_gpu_shards_per_gpu }}",
+            template,
+        )
         self.assertNotIn("slurm_gpu_type", template)
         self.assertNotIn("Feature=", template)
         self.assertNotIn("slurm_feature", template)
@@ -74,7 +77,7 @@ class SlurmRoleTests(unittest.TestCase):
         expected_settings = (
             "AccountingStorageType=accounting_storage/slurmdbd",
             "AccountingStorageHost={{ slurmdbd_host }}",
-            "AccountingStorageTRES=gres/gpu",
+            "AccountingStorageTRES=gres/gpu,gres/shard",
             "AccountingStorageEnforce={{ slurm_accounting_storage_enforce }}",
             "JobAcctGatherType=jobacct_gather/cgroup",
             "JobAcctGatherFrequency=30",
@@ -126,7 +129,7 @@ class SlurmRoleTests(unittest.TestCase):
 
         self.assertNotIn("preempt/qos", template)
 
-    def test_gpu_partitions_bill_one_gpu_and_negligible_cpu(self) -> None:
+    def test_gpu_partitions_bill_gpu_shares_and_cpu(self) -> None:
         template = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
         a100 = read_ansible_file(
             "inventory/host_vars/epic-cluster-compute-a100-01.yml"
@@ -139,9 +142,12 @@ class SlurmRoleTests(unittest.TestCase):
             'TRESBillingWeights="{{ node.slurm_tres_billing_weights }}"',
             template,
         )
-        self.assertIn('slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"', a100)
         self.assertIn(
-            'slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"',
+            'slurm_tres_billing_weights: "CPU=0.05,GRES/gpu=1,GRES/shard=0.25"',
+            a100,
+        )
+        self.assertIn(
+            'slurm_tres_billing_weights: "CPU=0.05,GRES/gpu=1,GRES/shard=0.5"',
             rtx4070,
         )
 
@@ -198,18 +204,22 @@ class SlurmRoleTests(unittest.TestCase):
         template = read_ansible_file("roles/slurm/templates/cgroup.conf.j2")
 
         self.assertIn("ConstrainCores=yes", template)
-        self.assertIn("ConstrainRAMSpace=yes", template)
+        self.assertIn("ConstrainRAMSpace=no", template)
         self.assertIn("ConstrainDevices=yes", template)
         self.assertNotIn("controlled_compute_nodes", template)
         self.assertNotIn("free_compute_nodes", template)
         self.assertNotIn("ConstrainCores=no", template)
-        self.assertNotIn("ConstrainRAMSpace=no", template)
+        self.assertNotIn("ConstrainRAMSpace=yes", template)
         self.assertNotIn("ConstrainDevices=no", template)
 
     def test_gres_configuration_uses_nvidia_autodetection(self) -> None:
         template = read_ansible_file("roles/slurm/templates/gres.conf.j2")
 
         self.assertIn("AutoDetect=nvidia", template)
+        self.assertIn(
+            "Name=shard Count={{ slurm_gpu_count * slurm_gpu_shards_per_gpu }}",
+            template,
+        )
         self.assertNotIn("slurm_gpu_type", template)
         self.assertNotIn("slurm_gpu_devices", template)
         self.assertNotIn("File=", template)
@@ -243,6 +253,39 @@ class SlurmRoleTests(unittest.TestCase):
         ):
             self.assertNotIn(obsolete_variable, a100)
             self.assertNotIn(obsolete_variable, rtx4070)
+
+    def test_shared_resource_policy_is_declared_per_gpu_partition(self) -> None:
+        slurm = read_ansible_file("roles/slurm/templates/slurm.conf.j2")
+        cgroup = read_ansible_file("roles/slurm/templates/cgroup.conf.j2")
+        a100 = read_ansible_file(
+            "inventory/host_vars/epic-cluster-compute-a100-01.yml"
+        )
+        rtx4070 = read_ansible_file(
+            "inventory/host_vars/epic-cluster-compute-rtx4070-01.yml"
+        )
+
+        self.assertIn("GresTypes=gpu,shard", slurm)
+        self.assertIn(
+            "SelectTypeParameters={{ node.slurm_select_type_parameters }}", slurm
+        )
+        self.assertIn("OverSubscribe={{ node.slurm_oversubscribe }}", slurm)
+        self.assertIn("ConstrainCores=yes", cgroup)
+        self.assertIn("ConstrainRAMSpace=no", cgroup)
+        self.assertIn("ConstrainDevices=yes", cgroup)
+
+        for expected in (
+            "slurm_select_type_parameters: CR_Core",
+            "slurm_oversubscribe: YES:4",
+            "slurm_gpu_shards_per_gpu: 4",
+        ):
+            self.assertIn(expected, a100)
+
+        for expected in (
+            "slurm_select_type_parameters: CR_Core",
+            "slurm_oversubscribe: YES:2",
+            "slurm_gpu_shards_per_gpu: 2",
+        ):
+            self.assertIn(expected, rtx4070)
 
 
 if __name__ == "__main__":

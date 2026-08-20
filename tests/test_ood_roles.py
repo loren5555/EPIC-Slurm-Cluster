@@ -215,6 +215,7 @@ class OODRoleTests(unittest.TestCase):
         self.assertIn("slurm_cpus", partitions)
         self.assertIn("slurm_real_memory", partitions)
         self.assertIn("slurm_gpu_count", partitions)
+        self.assertIn("slurm_gpu_shards_per_gpu", partitions)
 
         self.assertIn("ssh_access", rclone)
         self.assertIn("blockinfile", tasks)
@@ -275,19 +276,47 @@ class OODApplicationTests(unittest.TestCase):
             )
 
             cpu_field = "cpus-per-task" if application == "IAPP_script" else "cpus"
-            gpu_field = "gpus-per-task" if application == "IAPP_script" else "gpus"
-
             with self.subTest(application=application):
                 self.assertIn("config['cpu_max']", form)
-                self.assertIn("config['gpu_max']", form)
                 self.assertIn("config['mem_max_gb']", form)
                 self.assertIn(f"data-max-{cpu_field}", form)
-                self.assertIn(f"data-hide-{gpu_field}", form)
-                self.assertIn(f"data-max-{gpu_field}", form)
-                self.assertIn(f"data-set-{gpu_field}", form)
                 self.assertIn("data-max-memory", form)
-                self.assertIn("data-set-gpus", form.replace("-per-task", ""))
                 self.assertNotIn("data-max-bc-num-hours", form)
+
+    def test_shared_resource_policy_is_available_in_ood_forms(self) -> None:
+        gpu_apps = {
+            "IAPP_jupyter",
+            "IAPP_codeserver",
+            "IAPP_ttyd",
+            "IAPP_script",
+        }
+
+        for application in self.APPLICATIONS:
+            form = (APPS_DIRECTORY / application / "form.yml.erb").read_text(
+                encoding="utf-8"
+            )
+            submit = (APPS_DIRECTORY / application / "submit.yml.erb").read_text(
+                encoding="utf-8"
+            )
+
+            with self.subTest(application=application):
+                self.assertIn("cpu_oversubscribe", form)
+                self.assertIn("Accept shared CPU cores", form)
+                self.assertIn("cacheable: false", form)
+                self.assertIn('"--oversubscribe"', submit)
+
+                if application in gpu_apps:
+                    self.assertIn("gpu_resource", form)
+                    self.assertIn("widget: select", form)
+                    self.assertIn("value: 'gpu:1'", form)
+                    self.assertIn("Shared GPU", form)
+                    self.assertIn(
+                        "data-exclusive-option-for-resource-partition-", form
+                    )
+                    self.assertIn("--gres=<%= gpu_request %>", submit)
+                    self.assertIn("forbidden_gpu_argument", submit)
+                    self.assertNotIn("  - gpus\n", form)
+                    self.assertNotIn("  - gpus_per_task\n", form)
 
     def test_apps_do_not_reference_the_old_controller_or_fixed_runtime_versions(self) -> None:
         all_text = "\n".join(

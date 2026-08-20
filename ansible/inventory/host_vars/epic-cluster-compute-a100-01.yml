@@ -11,12 +11,18 @@ slurm_real_memory: 1024000
 # The GPU model and device files are discovered locally by AutoDetect=nvidia.
 # Inventory only declares the resource count that the node must register.
 slurm_gpu_count: 8
+slurm_gpu_shards_per_gpu: 4
+
+# Memory remains visible for user requests and accounting, but does not block
+# scheduling. CPU sharing is opt-in per job, up to four jobs per core.
+slurm_select_type_parameters: CR_Core
+slurm_oversubscribe: YES:4
 
 # Friendly text shown in OOD; Slurm still receives the complete partition name.
 ood_display_name: "A100 40 GB × 8 — Node 01 — Controlled"
 
-# One allocated GPU is one billing unit. CPU usage only breaks close ties.
-slurm_tres_billing_weights: "CPU=0.01,GRES/gpu=1"
+# One full GPU is one billing unit; four shards add up to the same cost.
+slurm_tres_billing_weights: "CPU=0.05,GRES/gpu=1,GRES/shard=0.25"
 
 # Filesystem quota policy. Filesystem initialization is manual; Ansible only
 # maintains limits after user identities and quota accounting already exist.

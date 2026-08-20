@@ -2,6 +2,8 @@
 {% if inventory_hostname in groups['compute_nodes'] %}
 # Discover NVIDIA GPU models and device files from the local driver.
 AutoDetect=nvidia
+# Shards are node-wide logical shares distributed over the detected GPUs.
+Name=shard Count={{ slurm_gpu_count * slurm_gpu_shards_per_gpu }}
 {% else %}
 # The controller has no local generic resources.
 {% endif %}

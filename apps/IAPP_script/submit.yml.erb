@@ -1,4 +1,24 @@
-<% require 'json'; require 'shellwords' %>
+<%
+require 'json'
+require 'shellwords'
+require 'yaml'
+
+extra_arguments = Shellwords.split(extra_sbatch.to_s)
+forbidden_gpu_argument = extra_arguments.find do |argument|
+  argument == '--gres' || argument.start_with?('--gres=', '--gpus', '-G')
+end
+raise ArgumentError, 'Set GPU resources with the GPU resource field.' if forbidden_gpu_argument
+
+partition_file = '/etc/ood/config/site.d/partitions.yml'
+partition_config = YAML.safe_load(File.read(partition_file)).fetch(resource_partition, {})
+gpu_max = partition_config.fetch('gpu_max', 0).to_i
+shards_per_gpu = partition_config.fetch('gpu_shards_per_gpu', 0).to_i
+allowed_gpu_requests = ['none']
+allowed_gpu_requests.concat(1.upto(gpu_max).map { |count| "gpu:#{count}" })
+allowed_gpu_requests.concat(1.upto([shards_per_gpu - 1, 0].max).map { |count| "shard:#{count}" })
+gpu_request = gpu_resource.to_s
+raise ArgumentError, 'Invalid GPU resource request.' unless allowed_gpu_requests.include?(gpu_request)
+%>
 ---
 batch_connect:
   template: basic
@@ -10,9 +30,12 @@ script:
     - "--mem=<%= memory.to_i %>G"
     - "--time=<%= bc_num_hours.to_i %>:00:00"
     - "--array=<%= array %>"
-<% if gpus_per_task.to_i > 0 %>
-    - "--gres=gpu:<%= gpus_per_task.to_i %>"
+<% if cpu_oversubscribe.to_i == 1 %>
+    - "--oversubscribe"
 <% end %>
-<% Shellwords.split(extra_sbatch.to_s).each do |argument| %>
+<% unless gpu_request == 'none' %>
+    - "--gres=<%= gpu_request %>"
+<% end %>
+<% extra_arguments.each do |argument| %>
     - <%= argument.to_json %>
 <% end %>

@@ -26,7 +26,7 @@ SlurmdDebug=info
 SchedulerType=sched/backfill
 SelectType=select/cons_tres
 SelectTypeParameters=CR_Core_Memory
-GresTypes=gpu
+GresTypes=gpu,shard
 MpiDefault=none
 ReturnToService=2
 
@@ -51,7 +51,7 @@ TaskPlugin=task/affinity,task/cgroup
 # Store job records and enforce the declared Associations, limits, and QoS.
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost={{ slurmdbd_host }}
-AccountingStorageTRES=gres/gpu
+AccountingStorageTRES=gres/gpu,gres/shard
 AccountingStorageEnforce={{ slurm_accounting_storage_enforce }}
 JobAcctGatherType=jobacct_gather/cgroup
 JobAcctGatherFrequency=30
@@ -70,7 +70,7 @@ NodeName={{ node_name }} \
     CoresPerSocket={{ node.slurm_cores_per_socket }} \
     ThreadsPerCore={{ node.slurm_threads_per_core }} \
     RealMemory={{ node.slurm_real_memory }} \
-    Gres=gpu:{{ node.slurm_gpu_count }} \
+    Gres=gpu:{{ node.slurm_gpu_count }},shard:{{ node.slurm_gpu_count * node.slurm_gpu_shards_per_gpu }} \
     State=UNKNOWN
 {% endfor %}
 
@@ -80,6 +80,8 @@ NodeName={{ node_name }} \
 PartitionName={{ node_name }} \
     Nodes={{ node_name }} \
     Default=NO \
+    SelectTypeParameters={{ node.slurm_select_type_parameters }} \
+    OverSubscribe={{ node.slurm_oversubscribe }} \
     MaxTime={{ slurm_partition_max_time }} \
     TRESBillingWeights="{{ node.slurm_tres_billing_weights }}" \
     State=UP

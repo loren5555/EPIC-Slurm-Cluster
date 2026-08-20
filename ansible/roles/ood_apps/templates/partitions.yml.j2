@@ -21,6 +21,7 @@
   cpu_max: {{ node.slurm_cpus }}
   mem_max_gb: {{ (node.slurm_real_memory / 1024) | int }}
   gpu_max: {{ node.slurm_gpu_count | default(0) }}
+  gpu_shards_per_gpu: {{ node.slurm_gpu_shards_per_gpu | default(0) }}
   allowed_users:
 {% for username in authorized.users | sort %}
     - "{{ username }}"

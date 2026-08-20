@@ -9,6 +9,9 @@ script:
     - "--cpus-per-task=<%= cpus.to_i %>"
     - "--mem=<%= memory.to_i %>G"
     - "--time=<%= bc_num_hours.to_i %>:00:00"
+<% if cpu_oversubscribe.to_i == 1 %>
+    - "--oversubscribe"
+<% end %>
 <% Shellwords.split(extra_sbatch.to_s).each do |argument| %>
     - <%= argument.to_json %>
 <% end %>

@@ -20,6 +20,7 @@ cluster: epic
 form:
   - resource_partition
   - cpus
+  - cpu_oversubscribe
   - memory
   - bc_num_hours
   - logdir
@@ -49,6 +50,15 @@ attributes:
     value: 2
     min: 1
     max: 128
+
+  cpu_oversubscribe:
+    label: Accept shared CPU cores
+    widget: check_box
+    checked_value: 1
+    unchecked_value: 0
+    value: 0
+    cacheable: false
+    help: The job may start sooner, but CPU performance can vary.
 
   memory:
     label: Memory (GB)
