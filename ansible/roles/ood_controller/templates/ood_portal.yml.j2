@@ -1,5 +1,7 @@
 ---
 servername: "{{ ood_server_address }}"
+listen_addr_port: "{{ ood_https_port }}"
+port: "{{ ood_https_port }}"
 
 ssl:
   - "SSLCertificateFile {{ ood_tls_directory }}/ood.crt"

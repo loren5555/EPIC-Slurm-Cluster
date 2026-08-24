@@ -26,4 +26,8 @@ ansible-playbook playbooks/<name>.yml
 - Jinja template 生成系统配置、OOD 菜单和监控 targets。
 - `slurm_partitions.yml`、`users.yml` 和 host vars 是 OOD 主机菜单的输入；SlurmDBD Association 是授权的最终来源。
 
+OOD 的 HTTPS 入口为 `https://epic-cluster-controller-01:8443/`。端口由
+`inventory/group_vars/all/ood.yml` 中的 `ood_https_port` 管理；不要手工修改
+Apache 的 `ports.conf` 或 OOD 生成的 `ood-portal.conf`。
+
 新增节点时先加入 inventory 和 host vars，再声明同名分区、授权、监控 target 和 OOD 入口，最后运行最小 CPU/GPU 作业验收。Ansible 不负责安装跨发行版的软件包；SlurmDBD、Prometheus、Grafana、OOD 和 GPU exporter 的手工安装边界见[超级管理员文档](superadmin.md)。

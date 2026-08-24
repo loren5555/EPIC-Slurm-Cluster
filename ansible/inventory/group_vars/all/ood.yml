@@ -2,6 +2,7 @@
 # Users reach the portal through this stable controller hostname. Each client
 # must resolve it through DNS or a local hosts entry.
 ood_server_address: epic-cluster-controller-01
+ood_https_port: 8443
 
 # Batch Connect and Job Composer exchange their context through this one small
 # NFS export. User homes and Slurm state remain local to each host.
