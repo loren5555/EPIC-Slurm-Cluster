@@ -15,7 +15,7 @@ nav_order: 1
 10.17.207.105 epic-cluster-controller-01
 ```
 
-Linux/macOS 修改 `/etc/hosts`；Windows 修改 `C:\Windows\System32\drivers\etc\hosts`。然后打开 [Open OnDemand](https://epic-cluster-controller-01/)，使用 OOD 独立密码登录。
+Linux/macOS 修改 `/etc/hosts`；Windows 修改 `C:\Windows\System32\drivers\etc\hosts`。然后打开 [Open OnDemand](https://epic-cluster-controller-01:8443/)，使用 OOD 独立密码登录。
 
 ## 2. 运行一个交互任务
 

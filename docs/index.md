@@ -8,6 +8,8 @@ nav_order: 2
 
 EPIC 集群通过 Open OnDemand 提供网页入口，通过 Slurm 提交和管理计算任务。每台计算主机有自己的 Slurm 分区，用户应在提交时明确选择目标主机。
 
+访问地址：[https://epic-cluster-controller-01:8443/](https://epic-cluster-controller-01:8443/)
+
 <span style="color:red">必须将控制节点的ip注册至本地的hosts文件才能正常访问网站</span>
 ```
 222.20.99.125 epic-cluster-controller-01

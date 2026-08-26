@@ -1,6 +1,6 @@
 ---
 layout: default
-title: 其它功能
+title: 通过SSH访问
 parent: 用户文档
 nav_order: 6
 ---
