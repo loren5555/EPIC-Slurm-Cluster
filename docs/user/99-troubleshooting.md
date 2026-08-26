@@ -2,7 +2,7 @@
 layout: default
 title: 用户排障
 parent: 用户文档
-nav_order: 6
+nav_order: 8
 ---
 
 # 用户排障
@@ -35,8 +35,8 @@ nvidia-smi -L
 ## 磁盘空间不足
 
 ```bash
-df -h /home /workspace /data
-quota -s
+df -h /home /workspace /data  # 查询物理空间剩余
+quota -s  # 查询限额信息
 ```
 
 先清理缓存和可再生成的中间文件，把长期数据移到 `/data`。不要删除别人的目录或绕过配额。

@@ -2,12 +2,11 @@
 layout: default
 title: 其它功能
 parent: 用户文档
-nav_order: 5
+nav_order: 6
 ---
 
-# 其它功能
-
-本页说明三种常用的额外访问方式：通过 SSH 连接获授权的计算节点、在本地 VS Code 中打开计算节点上的目录，以及通过 OOD 获取控制节点命令行。能够通过ssh连接的AI工具也适用本说明。
+# 通过SSH访问
+本页说明如何通过 SSH 连接获授权的计算节点、在本地 VS Code 中打开计算节点上的目录。能够通过ssh连接的AI工具也适用本说明。
 
 ## SSH 访问计算节点
 
@@ -96,42 +95,3 @@ VS Code 使用 **Remote - SSH** 扩展连接。它连接的是计算节点上的
 5. 连接成功后，在远程窗口中打开计算节点上的项目目录，例如 `/workspace/runs/<group>/<user>/project`。
 
 VS Code Remote-SSH 运行的是普通 SSH 会话，不会获取GPU访问权限。不要在这个会话中直接启动长时间训练；调试 GPU 程序时，在 VS Code 终端提交一个 Slurm 作业，或从 OOD Interactive App 启动开发会话。
-
-## 获取控制节点命令行
-
-控制节点用于 OOD、Slurm 客户端和集群管理命令。普通用户可以通过OOD的命令行方位打开控制节点 Shell：
-
-1. 登录 OOD。
-2. 打开上方 **Clusters → EPIC Slurm Cluster Shell Access**。
-3. 等待终端会话启动，在浏览器中使用控制节点命令行。
-
-在控制节点终端中可以运行：
-
-```bash
-hostname
-sinfo -s
-squeue -u "$USER"
-sacct -j <job-id> --format=JobID,State,Elapsed,AllocTRES
-```
-
-控制节点 Shell 适合查看队列、提交任务、检查作业记录和准备文件。计算任务仍应提交到 Slurm 分区，不要把训练程序直接放在控制节点上运行。
-
-如果已经按上一节配置了本地 SSH，也可以直接连接控制节点：
-
-```bash
-ssh epic-controller
-```
-
-控制节点连接成功后，仍需通过 Slurm 申请计算资源。`hostname` 显示控制节点并不代表当前已经获得 CPU 或 GPU 计算资源。
-
-## 访问方式怎么选
-
-
-| 需求                         | 推荐方式                                        |
-| ------------------------------ | ------------------------------------------------- |
-| 临时查看队列、提交或取消任务 | OOD 控制节点终端                                |
-| 编辑计算节点上的代码         | 本地 VS Code Remote-SSH                         |
-| 运行短命令或同步文件         | SSH、`scp` 或 `rsync`                           |
-| 使用 GPU 或运行长任务        | Slurm 作业、OOD Interactive App 或 Job Composer |
-
-不要复制他人的私钥，不要直接修改计算节点上的 `authorized_keys`，也不要通过 SSH 绕过 Slurm 的 GPU 分配规则。

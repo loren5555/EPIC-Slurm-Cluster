@@ -163,7 +163,7 @@
 - name: Install the persistent EPIC announcement
   ansible.builtin.template:
     src: announcement-banner.yml.j2
-    dest: "{{ ood_configuration_directory }}/announcements.d/00-epic-test-persistent.yml"
+    dest: "{{ ood_configuration_directory }}/announcements.d/00-epic-banner.yml"
     owner: root
     group: root
     mode: "0644"
@@ -172,7 +172,7 @@
 - name: Install the required EPIC user documentation announcement
   ansible.builtin.template:
     src: announcement-first-login.yml.j2
-    dest: "{{ ood_configuration_directory }}/announcements.d/00-epic-user-documentation.yml"
+    dest: "{{ ood_configuration_directory }}/announcements.d/00-epic-fist-login.yml"
     owner: root
     group: root
     mode: "0644"
