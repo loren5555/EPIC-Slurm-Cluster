@@ -13,9 +13,9 @@ Cmnd_Alias EPIC_ANSIBLE = \
 {% endif %}
 {% endfor %}
 
-# Accept one ordinary OOD username while keeping the password file fixed.
+# Accept any OOD username while keeping the password file fixed.
 # Password input remains interactive and is never committed to Git.
-Cmnd_Alias EPIC_OOD_PASSWORD = /usr/bin/htpasswd {{ ood_authentication_file }} ^[a-z_][a-z0-9_.-]*$
+Cmnd_Alias EPIC_OOD_PASSWORD = /usr/bin/htpasswd {{ ood_authentication_file }} *
 
 # Cluster accounts authenticate with personal SSH keys and normally have locked
 # Linux passwords. NOPASSWD applies only to the fixed command aliases above.

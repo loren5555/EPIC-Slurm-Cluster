@@ -44,6 +44,11 @@ sudo /usr/bin/env \
   /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/administrators.yml
 ```
 
+SlurmDB 权限由同一工作包收敛：`epic_superadministrators` 获得
+`AdminLevel=Administrator`，`epic_operators` 获得 `AdminLevel=Operator`，其余受管
+用户设为 `AdminLevel=None`。如果用户名同时出现在两个管理员名单中，超级管理员
+权限优先。
+
 ## 软件和凭据
 
 软件安装必须先检查候选版本和模拟结果，确认不会替换 Slurm、MUNGE、驱动或内核。MariaDB 和 SlurmDBD 使用 Ansible Vault 保存密码：

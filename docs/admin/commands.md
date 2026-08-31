@@ -96,8 +96,8 @@ Remote Files 配置。OOD 密码仍使用本页末尾的命令单独设置。
 
 ## 修改 OOD 密码
 
-管理员可以为任意语法合法的 OOD 用户名创建或重置密码，不需要先重新发布
-sudoers 用户名单：
+管理员可以为 OOD 用户名创建或重置密码，用户名需要匹配 `users.yml` 以保证OOD正常获取文件权限。
+密码文件路径固定为 `/etc/ood/auth/htpasswd`：
 
 ```bash
 sudo /usr/bin/htpasswd /etc/ood/auth/htpasswd <username>

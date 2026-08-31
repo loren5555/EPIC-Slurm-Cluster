@@ -26,9 +26,7 @@ class ClusterOperatorRoleTests(unittest.TestCase):
         self.assertIn("liuhongbo", manifest)
         self.assertIn("cluster_operator", playbook)
 
-    def test_sudoers_accepts_any_valid_ood_username_for_fixed_password_file(
-        self,
-    ) -> None:
+    def test_sudoers_accepts_any_ood_username_for_fixed_password_file(self) -> None:
         template = read_ansible_file(
             "roles/cluster_operator/templates/epic-operators.sudoers.j2"
         )
@@ -37,8 +35,11 @@ class ClusterOperatorRoleTests(unittest.TestCase):
         self.assertIn("'users.yml'", template)
         self.assertIn("'ood.yml'", template)
         self.assertNotIn("'site.yml'", template)
-        self.assertIn("/usr/bin/htpasswd", template)
-        self.assertIn("^[a-z_][a-z0-9_.-]*$", template)
+        self.assertIn(
+            "/usr/bin/htpasswd {{ ood_authentication_file }} *",
+            template,
+        )
+        self.assertNotIn("^[a-z_][a-z0-9_.-]*$", template)
         self.assertNotIn("cluster_users | map(attribute='name')", template)
         self.assertIn("NOPASSWD: EPIC_GIT, EPIC_ANSIBLE, EPIC_OOD_PASSWORD", template)
         self.assertIn("%epic-superadmins ALL=(ALL:ALL) ALL", template)
@@ -61,14 +62,23 @@ class ClusterOperatorRoleTests(unittest.TestCase):
 
         self.assertIn(expected_sequence, playbook)
 
-    def test_role_grants_declared_operators_slurm_operator_level(self) -> None:
+    def test_role_converges_three_slurm_administration_levels(self) -> None:
         tasks = read_ansible_file("roles/cluster_operator/tasks/main.yml")
+        normalized_tasks = " ".join(tasks.split())
 
         self.assertIn("/usr/bin/sacctmgr", tasks)
+        self.assertIn("AdminLevel=Administrator", tasks)
         self.assertIn("AdminLevel=Operator", tasks)
         self.assertIn("AdminLevel=None", tasks)
-        self.assertIn("epic_operators", tasks)
-        self.assertIn("difference(epic_operators)", tasks)
+        self.assertIn('loop: "{{ epic_superadministrators }}"', tasks)
+        self.assertIn(
+            'loop: "{{ epic_operators | difference(epic_superadministrators) | sort }}"',
+            tasks,
+        )
+        self.assertIn(
+            "difference(epic_operators) | difference(epic_superadministrators)",
+            normalized_tasks,
+        )
         self.assertIn("gpasswd", tasks)
         self.assertNotIn("groups: epic-superadmins,sudo", tasks)
 

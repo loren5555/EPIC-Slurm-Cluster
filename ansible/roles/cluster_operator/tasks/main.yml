@@ -66,6 +66,23 @@
     mode: "0440"
     validate: /usr/sbin/visudo -cf %s
 
+- name: Grant declared superadministrators full Slurm authority
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/sacctmgr
+      - --immediate
+      - modify
+      - user
+      - where
+      - "Name={{ item }}"
+      - set
+      - AdminLevel=Administrator
+  loop: "{{ epic_superadministrators }}"
+  loop_control:
+    label: "{{ item }}"
+  changed_when: false
+  when: not ansible_check_mode
+
 - name: Grant declared operators Slurm scheduling authority
   # SlurmDB records this privilege independently of Linux sudo. Operators can
   # manage jobs and node state, but remain unable to change SlurmDB policy.
@@ -79,15 +96,15 @@
       - "Name={{ item }}"
       - set
       - AdminLevel=Operator
-  loop: "{{ epic_operators }}"
+  loop: "{{ epic_operators | difference(epic_superadministrators) | sort }}"
   loop_control:
     label: "{{ item }}"
   changed_when: false
   when: not ansible_check_mode
 
 - name: Revoke Slurm scheduling authority from former operators
-  # Every managed cluster user is explicitly either an Operator or None. This
-  # prevents a removed administrator from retaining Slurm control-plane access.
+  # Every managed cluster user is explicitly an Administrator, Operator, or
+  # None. Administrator takes precedence when a user appears in both lists.
   ansible.builtin.command:
     argv:
       - /usr/bin/sacctmgr
@@ -98,7 +115,9 @@
       - "Name={{ item }}"
       - set
       - AdminLevel=None
-  loop: "{{ cluster_operator_user_names | difference(epic_operators) | sort }}"
+  loop: >-
+    {{ cluster_operator_user_names | difference(epic_operators)
+       | difference(epic_superadministrators) | sort }}
   loop_control:
     label: "{{ item }}"
   changed_when: false
