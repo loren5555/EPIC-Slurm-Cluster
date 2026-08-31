@@ -5,7 +5,7 @@
 Restore stable support and documentation links in the Open OnDemand Help
 drop-down menu. The menu is visible to every OOD user and provides one-click
 access to EPIC documentation, upstream product documentation, the project
-repository, and GitHub issue workflows.
+repository, GitHub issue workflows, and live cluster health information.
 
 ## Configuration Location
 
@@ -21,8 +21,21 @@ than host-specific values.
 
 ## Menu Structure
 
-Add two groups to the existing Help drop-down menu. All links open in a new
+Add three groups to the existing Help drop-down menu. All links open in a new
 browser tab.
+
+### 集群状态
+
+- 集群状态（Grafana）:
+  `http://epic-cluster-controller-01:3000/d/epic-cluster-availability`
+- 资源使用概览（Grafana）:
+  `http://epic-cluster-controller-01:3000/d/epic-cluster-overview`
+- Exporter 状态（Prometheus）:
+  `http://epic-cluster-controller-01:9090/targets`
+
+These links answer whether the cluster is currently usable before a user
+starts troubleshooting their own job. Prometheus links directly to the target
+health page rather than its general query interface.
 
 ### EPIC 集群
 
@@ -36,6 +49,8 @@ sections.
 ### 参考与支持
 
 - Slurm 官方文档: `https://slurm.schedmd.com/`
+- Slurm 排队与失败原因:
+  `https://slurm.schedmd.com/job_reason_codes.html`
 - Open OnDemand 官方文档:
   `https://osc.github.io/ood-documentation/latest`
 - 查看 GitHub Issues:
@@ -48,11 +63,6 @@ left and right navigation bars remain unchanged.
 
 ## Validation
 
-Extend the existing OOD controller contract test before changing the template.
-The test will require the `help_menu` property, both group labels, all six link
-titles and URLs, and `new_tab: true`. It must fail against the current template
-and pass after the minimal template change.
-
-Run the focused OOD controller test, parse the rendered YAML structure where
-the local environment permits, and inspect the final diff for unrelated
-changes. Deployment to the controller remains the operator's responsibility.
+The user explicitly authorized a configuration-only follow-up without adding
+or changing tests. Inspect the final template diff for unrelated changes and
+leave deployment to the controller to the operator.
