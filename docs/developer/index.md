@@ -7,7 +7,7 @@ has_children: true
 
 # 开发者与超级管理员文档
 
-这里面向维护 Ansible、OOD 应用、监控配置和站点策略的开发者与超级管理员。普通业务管理员请从[管理员文档](../admin/index.md)开始。
+这里面向维护 Ansible、OOD 应用、监控配置和站点策略的开发者。管理员请从[管理员文档](../admin/index.md)开始。
 
 - [仓库与变更规则](repository.md)
 - [Ansible 架构](ansible.md)

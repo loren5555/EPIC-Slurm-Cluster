@@ -58,8 +58,7 @@ Account、Linux access group 和 SSH 主机：
 2. 按需更新 `ansible/vars/slurm_partitions.yml`。如果用户的 Account 已在目标
    分区的 `allowed_accounts` 中，不需要修改；只有目标分区按 `allowed_users`
    单独授权，或 Account 尚未获得授权时才需要更新。
-3. 提交 PR，说明用户需要使用的主机和资源类型，将变更合并至部署于控制节点的
-   `main` 分支，并按[管理员可用命令](commands.md)同步控制节点仓库。
+3. 并按[管理员命令](commands.md)同步控制节点仓库。
 
    ```bash
    sudo /usr/bin/git \
@@ -84,12 +83,14 @@ Account、Linux access group 和 SSH 主机：
    /usr/bin/ansible-playbook \
    /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/user_onboarding.yml \
    --check
+   # 此处应当观察到没有错误出现。
 
    # 运行脚本，同步配置
    sudo /usr/bin/env \
    ANSIBLE_CONFIG=/srv/epic/repos/EPIC-Slurm-Cluster/ansible/ansible.cfg \
    /usr/bin/ansible-playbook \
    /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/user_onboarding.yml
+   # 此处应当观察到没有错误出现。
 
    # 再次运行，确认配置已同步
    sudo /usr/bin/env \

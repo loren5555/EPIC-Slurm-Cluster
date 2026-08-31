@@ -153,8 +153,8 @@
 
 - name: Install the dismissible EPIC announcement
   ansible.builtin.template:
-    src: announcement-dismissible.yml.j2
-    dest: "{{ ood_configuration_directory }}/announcements.d/epic-test-dismissible.yml"
+    src: announcement-gpu-share-available.yml.j2
+    dest: "{{ ood_configuration_directory }}/announcements.d/00-gpu-share-available.yml"
     owner: root
     group: root
     mode: "0644"
@@ -162,8 +162,8 @@
 
 - name: Install the persistent EPIC announcement
   ansible.builtin.template:
-    src: announcement-persistent.yml.j2
-    dest: "{{ ood_configuration_directory }}/announcements.d/epic-test-persistent.yml"
+    src: announcement-banner.yml.j2
+    dest: "{{ ood_configuration_directory }}/announcements.d/00-epic-banner.yml"
     owner: root
     group: root
     mode: "0644"
@@ -171,8 +171,8 @@
 
 - name: Install the required EPIC user documentation announcement
   ansible.builtin.template:
-    src: announcement-required-docs.yml.j2
-    dest: "{{ ood_configuration_directory }}/announcements.d/epic-user-documentation.yml"
+    src: announcement-first-login.yml.j2
+    dest: "{{ ood_configuration_directory }}/announcements.d/00-epic-fist-login.yml"
     owner: root
     group: root
     mode: "0644"
