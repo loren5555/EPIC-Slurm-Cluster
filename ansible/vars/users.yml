@@ -129,6 +129,17 @@ cluster_users:
       - EPIC-RL
     ssh_access:
       - epic-cluster-compute-a100-01
+  - name: guoliang
+    uid: 10012
+    gid: 10012
+    slurm_account: epic-rl
+    home: /home/guoliang
+    shell: /bin/bash
+    groups:
+      - EPIC-RL
+    ssh_access:
+      - epic-cluster-compute-a100-01
+      - epic-cluster-compute-rtx4070-01
   - name: jingnanwang
     uid: 10999
     gid: 10999

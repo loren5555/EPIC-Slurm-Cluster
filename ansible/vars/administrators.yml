@@ -4,6 +4,7 @@
 # accounts already exist in users.yml.
 epic_superadministrators:
   - liuhongbo
+  - guoliang 
 
 epic_operators:
   - yinjiajie
