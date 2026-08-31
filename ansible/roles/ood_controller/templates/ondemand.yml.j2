@@ -1,6 +1,51 @@
 ---
 dashboard_title: "EPIC"
 
+help_menu:
+  - group: "集群状态"
+  - title: "集群状态（Grafana）"
+    icon: "fas://heartbeat"
+    url: "http://epic-cluster-controller-01:3000/d/epic-cluster-availability"
+    new_tab: true
+  - title: "资源使用概览（Grafana）"
+    icon: "fas://chart-line"
+    url: "http://epic-cluster-controller-01:3000/d/epic-cluster-overview"
+    new_tab: true
+  - title: "Exporter 状态（Prometheus）"
+    icon: "fas://signal"
+    url: "http://epic-cluster-controller-01:9090/targets"
+    new_tab: true
+  - group: "EPIC 集群"
+  - title: "集群文档"
+    icon: "fas://book"
+    url: "https://loren5555.github.io/EPIC-Slurm-Cluster/"
+    new_tab: true
+  - title: "GitHub 仓库"
+    icon: "fab://github"
+    url: "https://github.com/loren5555/EPIC-Slurm-Cluster"
+    new_tab: true
+  - group: "参考与支持"
+  - title: "Slurm 官方文档"
+    icon: "fas://book"
+    url: "https://slurm.schedmd.com/"
+    new_tab: true
+  - title: "Slurm 排队与失败原因"
+    icon: "fas://info-circle"
+    url: "https://slurm.schedmd.com/job_reason_codes.html"
+    new_tab: true
+  - title: "Open OnDemand 官方文档"
+    icon: "fas://book"
+    url: "https://osc.github.io/ood-documentation/latest"
+    new_tab: true
+  - title: "查看 GitHub Issues"
+    icon: "fab://github"
+    url: "https://github.com/loren5555/EPIC-Slurm-Cluster/issues"
+    new_tab: true
+  - title: "提交问题"
+    icon: "fas://bug"
+    url: "https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose"
+    new_tab: true
+
 # Keep every EPIC-managed application visible on the landing page. The same
 # inventory list also controls publication into the system application catalog.
 pinned_apps:

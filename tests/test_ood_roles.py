@@ -167,6 +167,30 @@ class OODRoleTests(unittest.TestCase):
             self.assertIn("msg: |", announcement)
             self.assertNotIn("content: |", announcement)
 
+    def test_dashboard_help_menu_exposes_documentation_and_support_links(self) -> None:
+        dashboard = read_ansible_file(
+            "roles/ood_controller/templates/ondemand.yml.j2"
+        )
+
+        self.assertIn("help_menu:", dashboard)
+        for group in ("EPIC 集群", "参考与支持"):
+            self.assertIn(f'group: "{group}"', dashboard)
+
+        links = {
+            "集群文档": "https://loren5555.github.io/EPIC-Slurm-Cluster/",
+            "GitHub 仓库": "https://github.com/loren5555/EPIC-Slurm-Cluster",
+            "Slurm 官方文档": "https://slurm.schedmd.com/",
+            "Open OnDemand 官方文档": "https://osc.github.io/ood-documentation/latest",
+            "查看 GitHub Issues": "https://github.com/loren5555/EPIC-Slurm-Cluster/issues",
+            "提交问题": "https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose",
+        }
+        for title, url in links.items():
+            with self.subTest(title=title):
+                self.assertIn(f'title: "{title}"', dashboard)
+                self.assertIn(f'url: "{url}"', dashboard)
+
+        self.assertEqual(dashboard.count("new_tab: true"), len(links))
+
     def test_quota_reports_are_independent_per_compute_host(self) -> None:
         variables = read_ansible_file("inventory/group_vars/all/ood.yml")
         collector = read_ansible_file(
