@@ -30,4 +30,4 @@ OOD 的 HTTPS 入口为 `https://epic-cluster-controller-01:8443/`。端口由
 `inventory/group_vars/all/ood.yml` 中的 `ood_https_port` 管理；不要手工修改
 Apache 的 `ports.conf` 或 OOD 生成的 `ood-portal.conf`。
 
-新增节点时先加入 inventory 和 host vars，再声明同名分区、授权、监控 target 和 OOD 入口，最后运行最小 CPU/GPU 作业验收。Ansible 不负责安装跨发行版的软件包；SlurmDBD、Prometheus、Grafana、OOD 和 GPU exporter 的手工安装边界见[超级管理员文档](superadmin.md)。
+新增节点需要依次准备主机、声明 inventory 和 host vars、配置同名分区与授权，并完成监控、OOD 和作业验收；执行时使用[新增节点 Checklist](07-add-node-checklist.md)。Ansible 不负责安装跨发行版的软件包；SlurmDBD、Prometheus、Grafana、OOD 和 GPU exporter 的手工安装边界见[超级管理员文档](06-superadmin.md)。

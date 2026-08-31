@@ -9,11 +9,12 @@ has_children: true
 
 这里面向维护 Ansible、OOD 应用、监控配置和站点策略的开发者。管理员请从[管理员文档](../admin/index.md)开始。
 
-- [仓库与变更规则](repository.md)
-- [Ansible 架构](ansible.md)
-- [系统运维](operations.md)：服务、日志、节点、监控、配额和 BMC。
-- [超级管理员操作](superadmin.md)
-- [IAPP 开发](apps.md)
-- [文档维护](documentation.md)
+1. [仓库与变更规则](01-repository.md)
+2. [Ansible 架构](02-ansible.md)
+3. [IAPP 开发](03-apps.md)
+4. [文档维护](04-documentation.md)
+5. [系统运维](05-operations.md)：服务、日志、节点、监控、配额和 BMC。
+6. [超级管理员操作](06-superadmin.md)
+7. [新增节点 Checklist](07-add-node-checklist.md)：计算节点从准备、声明到验收和交接的操作清单。
 
 推荐阅读顺序是先看 source of truth 和发布流程，再看具体 role 或应用。运行行为以 `ansible/` 和 `apps/` 为准，设计决策记录位于 `docs/superpowers/specs/`。

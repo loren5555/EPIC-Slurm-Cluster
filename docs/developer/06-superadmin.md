@@ -21,6 +21,10 @@ nav_order: 6
 
 业务管理员不拥有上述权限。GitHub 分支保护和 PR 审核是持久配置变更的审计边界。
 
+## 新增节点
+
+新增计算节点前，使用[新增节点 Checklist](07-add-node-checklist.md)逐项确认主机准备、仓库声明、分阶段部署、作业验收和回退条件。节点通过验收并完成交接记录前，不要将其作为可用资源开放给普通用户。
+
 ## 管理员权限收敛
 
 管理员名单位于 `ansible/vars/administrators.yml`，用户身份必须先存在于 `ansible/vars/users.yml`。新增或撤销管理员时：

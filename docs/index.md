@@ -27,6 +27,6 @@ EPIC 集群通过 Open OnDemand 提供网页入口，通过 Slurm 提交和管�
 - [提交 Interactive App 和批处理任务](user/jobs.md)
 - [管理员日常操作](admin/operations.md)
 - [集群部署流程](admin/deployment.md)
-- [IAPP 开发](developer/apps.md)
+- [IAPP 开发](developer/03-apps.md)
 
 [提交 Issue](https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose) 前，请先查看对应读者文档并附上最小复现信息。

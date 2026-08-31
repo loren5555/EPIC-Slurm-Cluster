@@ -66,6 +66,7 @@ ssh -N -L 8443:192.168.100.2:443 maintain@222.20.76.74
 
 监控和 OOD 软件安装、服务 unit、Prometheus targets、Grafana provisioning、OOD 运行时和门户配置属于开发者维护范围。部署流程见：
 
-- [超级管理员操作](superadmin.md)
-- [Ansible 架构](ansible.md)
+- [超级管理员操作](06-superadmin.md)
+- [新增节点 Checklist](07-add-node-checklist.md)
+- [Ansible 架构](02-ansible.md)
 - [决策记录](../superpowers/specs/)

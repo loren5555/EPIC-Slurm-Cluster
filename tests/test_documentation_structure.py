@@ -57,12 +57,13 @@ class DocumentationStructureTests(unittest.TestCase):
             "docs/admin/jobs.md": ("任务管理", "管理员文档", "2", ""),
             "docs/admin/commands.md": ("管理员可用命令", "管理员文档", "3", ""),
             "docs/developer/index.md": ("开发者文档", "", "5", "true"),
-            "docs/developer/repository.md": ("仓库与变更规则", "开发者文档", "1", ""),
-            "docs/developer/ansible.md": ("Ansible 架构", "开发者文档", "2", ""),
-            "docs/developer/apps.md": ("IAPP 开发", "开发者文档", "3", ""),
-            "docs/developer/documentation.md": ("文档维护", "开发者文档", "4", ""),
-            "docs/developer/operations.md": ("系统运维", "开发者文档", "5", ""),
-            "docs/developer/superadmin.md": ("超级管理员操作", "开发者文档", "6", ""),
+            "docs/developer/01-repository.md": ("仓库与变更规则", "开发者文档", "1", ""),
+            "docs/developer/02-ansible.md": ("Ansible 架构", "开发者文档", "2", ""),
+            "docs/developer/03-apps.md": ("IAPP 开发", "开发者文档", "3", ""),
+            "docs/developer/04-documentation.md": ("文档维护", "开发者文档", "4", ""),
+            "docs/developer/05-operations.md": ("系统运维", "开发者文档", "5", ""),
+            "docs/developer/06-superadmin.md": ("超级管理员操作", "开发者文档", "6", ""),
+            "docs/developer/07-add-node-checklist.md": ("新增节点 Checklist", "开发者文档", "7", ""),
         }
 
         for path, (title, parent, order, has_children) in expected_pages.items():
@@ -103,10 +104,13 @@ class DocumentationStructureTests(unittest.TestCase):
             "admin/monitoring.md",
             "admin/ood.md",
             "developer/index.md",
-            "developer/repository.md",
-            "developer/ansible.md",
-            "developer/apps.md",
-            "developer/documentation.md",
+            "developer/01-repository.md",
+            "developer/02-ansible.md",
+            "developer/03-apps.md",
+            "developer/04-documentation.md",
+            "developer/05-operations.md",
+            "developer/06-superadmin.md",
+            "developer/07-add-node-checklist.md",
         )
 
         for relative_path in expected_pages:
