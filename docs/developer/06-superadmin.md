@@ -55,6 +55,8 @@ SlurmDB 权限由同一工作包收敛：`epic_superadministrators` 获得
 
 ## 软件和凭据
 
+新增 Ubuntu GPU 计算节点时，Slurm、MUNGE、Docker、NVIDIA Container Toolkit 和 exporter 的安装命令见[计算节点环境安装](08-compute-node-environment.md)。
+
 软件安装必须先检查候选版本和模拟结果，确认不会替换 Slurm、MUNGE、驱动或内核。MariaDB 和 SlurmDBD 使用 Ansible Vault 保存密码：
 
 ```bash

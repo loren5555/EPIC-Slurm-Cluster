@@ -19,6 +19,8 @@ nav_order: 7
 
 ## 2. 主机和运行时
 
+以[计算节点环境安装](08-compute-node-environment.md)中的显式命令完成下列 Ansible 前准备，并记录实际软件版本和镜像 digest。
+
 - [ ] 配置固定地址、DNS 或 `/etc/hosts`，确认控制节点和新节点能够按稳定主机名双向解析。
 - [ ] 配置时间同步，确认控制节点与新节点时间一致。
 - [ ] 建立超级管理员 SSH 访问，确认 Ansible 能使用 inventory 中的管理账户连接并提权。
@@ -62,4 +64,4 @@ nav_order: 7
 - [ ] 更新节点资产信息、BMC 凭据保管位置和维护负责人；凭据不得写入仓库。
 - [ ] 通知管理员新节点的分区名、资源范围、允许用户或 Account，以及已知限制。
 
-相关背景见[Ansible 架构](02-ansible.md)、[系统运维](05-operations.md)和[超级管理员操作](06-superadmin.md)。
+相关背景见[Ansible 架构](02-ansible.md)、[系统运维](05-operations.md)、[超级管理员操作](06-superadmin.md)和[计算节点环境安装](08-compute-node-environment.md)。

@@ -64,6 +64,7 @@ class DocumentationStructureTests(unittest.TestCase):
             "docs/developer/05-operations.md": ("系统运维", "开发者文档", "5", ""),
             "docs/developer/06-superadmin.md": ("超级管理员操作", "开发者文档", "6", ""),
             "docs/developer/07-add-node-checklist.md": ("新增节点 Checklist", "开发者文档", "7", ""),
+            "docs/developer/08-compute-node-environment.md": ("计算节点环境安装", "开发者文档", "8", ""),
         }
 
         for path, (title, parent, order, has_children) in expected_pages.items():
@@ -111,6 +112,7 @@ class DocumentationStructureTests(unittest.TestCase):
             "developer/05-operations.md",
             "developer/06-superadmin.md",
             "developer/07-add-node-checklist.md",
+            "developer/08-compute-node-environment.md",
         )
 
         for relative_path in expected_pages:

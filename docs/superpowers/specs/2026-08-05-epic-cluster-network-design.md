@@ -77,6 +77,7 @@ epic-cluster-controller-01
 | `192.168.77.10-49` | 受管控及测试计算节点 |
 | `192.168.77.11` | RTX 4070 测试节点 `epic-cluster-compute-rtx4070-01` |
 | `192.168.77.50-199` | 自由实验主机 |
+| `192.168.77.50` | RTX 4070 自由节点 `epic-cluster-compute-rtx4070-02` |
 | `192.168.77.200-229` | 临时 DHCP 地址池 |
 | `192.168.77.250` | 旧控制节点 `epic-cluster-controller-02` |
 | `192.168.77.251` | 新控制节点 `epic-cluster-controller-01` |

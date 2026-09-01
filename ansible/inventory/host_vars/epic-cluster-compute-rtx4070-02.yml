@@ -1,0 +1,28 @@
+---
+# Hardware and scheduling policy match the validated RTX 4070 node 01.
+slurm_cpus: 32
+slurm_boards: 1
+slurm_sockets_per_board: 1
+slurm_cores_per_socket: 16
+slurm_threads_per_core: 2
+slurm_real_memory: 126000
+
+# The GPU model and device files are discovered locally by AutoDetect=nvidia.
+# Inventory only declares the resource count that the node must register.
+slurm_gpu_count: 1
+slurm_gpu_shards_per_gpu: 2
+
+# Memory remains visible for user requests and accounting, but does not block
+# scheduling. CPU sharing is opt-in per job, up to two jobs per core.
+slurm_select_type_parameters: CR_Core
+slurm_oversubscribe: YES:2
+
+# Keep the new partition closed until the node passes the onboarding runbook.
+# Remove this override after acceptance, then converge Slurm again.
+slurm_partition_state: DOWN
+
+# Friendly text shown in OOD; Slurm still receives the complete partition name.
+ood_display_name: "RTX 4070 Ti SUPER × 1 — Node 02 — Free"
+
+# One full GPU is one billing unit; two shards add up to the same cost.
+slurm_tres_billing_weights: "CPU=0.05,GRES/gpu=1,GRES/shard=0.5"
