@@ -19,6 +19,6 @@ has_children: true
 8. [计算节点环境安装](08-compute-node-environment.md)：Ubuntu GPU 计算节点在 Ansible 前的网络、Slurm、MUNGE、Docker 和 exporter 环境准备。
 9. [A100 节点基线与资源边界](09-a100-node-baseline.md)：A100 的磁盘、配额、GPU 登录隔离和 Docker 权限边界。
 10. [共享存储设计与部署](10-shared-storage.md)：规划中的 `/data` NFSv4 路径、上线顺序和故障边界。
-11. [网络与静态地址规划](11-network-address-plan.md)：内部网段、静态地址分类、DHCP 地址池和预留范围。
+11. [网络与静态地址规划](11-network-address-plan.md)：物理拓扑、外网出口、DHCP 固定租约、动态地址池和预留范围。
 
 推荐阅读顺序是先看 source of truth 和发布流程，再看具体 role 或应用。已知错误统一查看[故障手册](../troubleshooting/index.md#developer-troubleshooting)。运行行为以 `ansible/` 和 `apps/` 为准，设计决策记录位于 `docs/superpowers/specs/`。

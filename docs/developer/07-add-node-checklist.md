@@ -21,7 +21,7 @@ nav_order: 7
 
 以[计算节点环境安装](08-compute-node-environment.md)中的显式命令完成下列 Ansible 前准备，并记录实际软件版本和镜像 digest。
 
-- [ ] 按[网络与静态地址规划](11-network-address-plan.md)从对应节点类别的静态地址段分配地址，配置 DNS 或 `/etc/hosts`，并确认控制节点和新节点能够按稳定主机名双向解析。
+- [ ] 按[网络与静态地址规划](11-network-address-plan.md)从对应节点类别的固定租约地址段分配地址，在路由器绑定网卡 MAC，并确认网关、VLAN DNS 以及控制节点和新节点的稳定主机名双向解析。
 - [ ] 配置时间同步，确认控制节点与新节点时间一致。
 - [ ] 建立超级管理员 SSH 访问，确认 Ansible 能使用 inventory 中的管理账户连接并提权。
 - [ ] 安装与集群兼容的 MUNGE 和 Slurm 版本，分发 MUNGE key，并确认 `munge -n | unmunge` 成功。
