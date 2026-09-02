@@ -21,7 +21,7 @@ nav_order: 7
 
 以[计算节点环境安装](08-compute-node-environment.md)中的显式命令完成下列 Ansible 前准备，并记录实际软件版本和镜像 digest。
 
-- [ ] 配置固定地址、DNS 或 `/etc/hosts`，确认控制节点和新节点能够按稳定主机名双向解析。
+- [ ] 按[网络与静态地址规划](11-network-address-plan.md)从对应节点类别的静态地址段分配地址，配置 DNS 或 `/etc/hosts`，并确认控制节点和新节点能够按稳定主机名双向解析。
 - [ ] 配置时间同步，确认控制节点与新节点时间一致。
 - [ ] 建立超级管理员 SSH 访问，确认 Ansible 能使用 inventory 中的管理账户连接并提权。
 - [ ] 安装与集群兼容的 MUNGE 和 Slurm 版本，分发 MUNGE key，并确认 `munge -n | unmunge` 成功。
@@ -67,4 +67,4 @@ nav_order: 7
 - [ ] 更新节点资产信息、BMC 凭据保管位置和维护负责人；凭据不得写入仓库。
 - [ ] 通知管理员新节点的分区名、资源范围、允许用户或 Account，以及已知限制。
 
-相关背景见[Ansible 架构](02-ansible.md)、[系统运维](05-operations.md)、[超级管理员操作](06-superadmin.md)、[计算节点环境安装](08-compute-node-environment.md)和[故障手册](../troubleshooting/index.md)。
+相关背景见[Ansible 架构](02-ansible.md)、[系统运维](05-operations.md)、[超级管理员操作](06-superadmin.md)、[计算节点环境安装](08-compute-node-environment.md)、[网络与静态地址规划](11-network-address-plan.md)和[故障手册](../troubleshooting/index.md)。
