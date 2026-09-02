@@ -26,7 +26,7 @@ nav_order: 7
 - [ ] 建立超级管理员 SSH 访问，确认 Ansible 能使用 inventory 中的管理账户连接并提权。
 - [ ] 安装与集群兼容的 MUNGE 和 Slurm 版本，分发 MUNGE key，并确认 `munge -n | unmunge` 成功。
 - [ ] 创建 Slurm 日志与 spool 目录，确认属主、权限和磁盘空间满足现有节点约定。
-- [ ] 挂载节点需要的 `/home`、`/workspace`、`/data` 或 OOD 上下文路径；不要把本地临时盘误标为持久存储。
+- [ ] 挂载节点需要的 `/home`、`/workspace` 和 OOD 上下文路径；共享 `/data` 尚未上线，上线后按[共享存储设计](10-shared-storage.md)单独验收。不要把本地临时盘误标为持久存储。
 - [ ] GPU 节点手工安装并确认 NVIDIA 驱动、容器运行时及所需 exporter；Ansible 不负责隐式安装驱动或跨发行版软件包。
 - [ ] 按安装文档准备 OOD IAPP 运行时，确认 `/usr/local/bin/code-server`、`/usr/bin/ttyd`、`/opt/jupyterlab/bin/jupyter-lab` 和 `/opt/tensorboard/bin/tensorboard` 均可执行，并记录版本。
 
@@ -42,8 +42,8 @@ nav_order: 7
 ## 4. 分阶段部署
 
 - [ ] 新节点先保持不可调度，避免配置未完成时接收用户作业。
-- [ ] 先正式运行身份工作包；如果预检报同名账号的 UID/GID 不一致，使用[故障手册：UID/GID 冲突](../troubleshooting/index.md#identity-uid-gid-conflict)。
-- [ ] 身份收敛成功后再运行 SSH 工作包；如果报受管用户不存在，使用[故障手册：SSH 预检缺少用户](../troubleshooting/index.md#ssh-missing-managed-user)。
+- [ ] 先正式运行身份工作包；如果预检报同名账号的 UID/GID 不一致，使用[故障手册：UID/GID 冲突](../troubleshooting/14-identity-conflict.md)。
+- [ ] 身份收敛成功后再运行 SSH 工作包；如果报受管用户不存在，使用[故障手册：SSH 预检缺少用户](../troubleshooting/15-ssh-preflight.md)。
 - [ ] 继续依次执行 SlurmDBD/Association、Slurm、监控、OOD 和配额的最小工作包；不要首先运行完整 `site.yml`。
 - [ ] 每个工作包执行一次 `--check --diff`，审阅只涉及预期主机和配置后再正式运行。
 - [ ] 确认 `munge`、`slurmd`、`node_exporter` 以及 GPU 节点所需 exporter 正常运行。

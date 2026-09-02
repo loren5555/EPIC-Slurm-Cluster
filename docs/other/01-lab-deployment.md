@@ -63,7 +63,7 @@ ansible-playbook playbooks/ood.yml
 ```
 
 不要在 Association 尚未完整时启用 `AccountingStorageEnforce=associations`。若该设置
-阻断正常用户，按[故障手册](../troubleshooting/index.md#association-enforcement-recovery)
+阻断正常用户，按[故障手册](../troubleshooting/13-association-enforcement.md)
 临时撤回；不要删除数据库或 Association。
 
 ## 最小验收

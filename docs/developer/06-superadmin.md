@@ -110,7 +110,7 @@ ansible-playbook ansible/playbooks/site.yml
 
 ## 紧急恢复
 
-Association 强制导致正常用户无法提交时，使用[故障手册：Association 强制恢复](../troubleshooting/index.md#association-enforcement-recovery)。
+Association 强制导致正常用户无法提交时，使用[故障手册：Association 强制恢复](../troubleshooting/13-association-enforcement.md)。
 
 ## 超级管理员日常检查
 

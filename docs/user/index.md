@@ -13,7 +13,7 @@ has_children: true
 2. [提交任务](02-jobs.md)：Interactive Apps、Job Composer、Script 和 GPU 任务。
 3. [排队与优先级](03-queue.md)：了解资源申请、预计时长和任务优先级。
 4. [共享资源分配](04-shared-resources.md): 了解可共享资源的分配模式。
-5. [存储与环境](05-storage.md)：选择 `/home`、`/workspace`、`/data`，管理环境和缓存。
+5. [存储与环境](05-storage.md)：选择 `/home`、`/workspace`，了解规划中的 `/data`，管理环境和缓存。
 6. 其它功能：[SSH 访问](06-ssh-connect.md)、[命令行访问](07-cmd-access.md)。
 
 ## 常见故障查询

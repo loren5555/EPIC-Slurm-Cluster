@@ -17,9 +17,10 @@ nav_order: 3
 |---|---|
 | `docs/ood-compute-runtime.md` | [手工软件准备](02-manual-software-bootstrap.md)、[计算节点环境](../developer/08-compute-node-environment.md) |
 | `docs/slurm-stack-deployment-guide.md` | [实验室部署操作](01-lab-deployment.md)、[故障手册](../troubleshooting/index.md) |
-| `docs/deployment.md`、`docs/quick_start.md`、`docs/sbatch.md` | 用户、管理员、开发者章节及本章 |
+| `docs/deployment.md`、`docs/quick_start.md`、`docs/sbatch.md` | 用户、管理员、开发者章节、[A100 节点基线](../developer/09-a100-node-baseline.md)及本章 |
 | `docs/admin_doc.md`、`docs/developer_doc.md`、`docs/id_table.md` | 当前管理员/开发者说明和 `ansible/vars/users.yml` |
 | 2026-08-04 至 2026-08-19 被删的 9 份 plans/specs | 已按删除前原文恢复到 `docs/superpowers/`，不作为当前命令的权威来源 |
+| Notion `A100 部署记录` | [A100 节点基线](../developer/09-a100-node-baseline.md)和[共享存储设计](../developer/10-shared-storage.md)；只迁移与当前配置一致的内容 |
 
 ## 从 Git 查看原文
 
@@ -36,3 +37,6 @@ git log --all --diff-filter=D --summary -- docs
 
 今后清理文档时遵循两条规则：仍可执行的操作迁入 `Other`，仍可能复现的错误迁入
 故障手册；纯过程记录留在 `docs/superpowers` 或新增归档索引，而不是删除。
+
+Notion 记录属于未经验证的历史输入。与当前 Ansible、运行节点或管理员确认冲突时，以
+当前状态为准；旧主机名、旧路径、已停用脚本和任何明文凭据均不迁入仓库。
