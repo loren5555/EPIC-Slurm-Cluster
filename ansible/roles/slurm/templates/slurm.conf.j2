@@ -84,5 +84,5 @@ PartitionName={{ node_name }} \
     OverSubscribe={{ node.slurm_oversubscribe }} \
     MaxTime={{ slurm_partition_max_time }} \
     TRESBillingWeights="{{ node.slurm_tres_billing_weights }}" \
-    State=UP
+    State={{ node.slurm_partition_state | default('UP') }}
 {% endfor %}

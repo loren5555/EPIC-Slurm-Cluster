@@ -55,6 +55,8 @@ SlurmDB 权限由同一工作包收敛：`epic_superadministrators` 获得
 
 ## 软件和凭据
 
+新增 Ubuntu GPU 计算节点时，Slurm、MUNGE、Docker、NVIDIA Container Toolkit 和 exporter 的安装命令见[计算节点环境安装](08-compute-node-environment.md)。
+
 软件安装必须先检查候选版本和模拟结果，确认不会替换 Slurm、MUNGE、驱动或内核。MariaDB 和 SlurmDBD 使用 Ansible Vault 保存密码：
 
 ```bash
@@ -108,13 +110,7 @@ ansible-playbook ansible/playbooks/site.yml
 
 ## 紧急恢复
 
-如果 Association 强制导致正常用户无法提交，先从 `slurm.conf` 移除 `AccountingStorageEnforce`，再执行：
-
-```bash
-scontrol reconfigure
-```
-
-不要清空 SlurmDBD 数据库、删除 Association、删除 Slurm 状态目录或修改 NVIDIA 驱动。恢复提交后保留现场日志和配置差异，先修复清单或数据库状态，再重新启用强制。
+Association 强制导致正常用户无法提交时，使用[故障手册：Association 强制恢复](../troubleshooting/13-association-enforcement.md)。
 
 ## 超级管理员日常检查
 

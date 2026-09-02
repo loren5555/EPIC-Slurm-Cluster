@@ -1,4 +1,28 @@
 ---
+- name: Inspect required OOD interactive application runtimes
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  loop: "{{ ood_compute_runtime_executables }}"
+  loop_control:
+    label: "{{ item.application }}: {{ item.path }}"
+  register: ood_compute_runtime_checks
+
+- name: Require the standard OOD interactive application runtime set
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+      - item.stat.executable
+    fail_msg: >-
+      {{ item.item.application }} requires executable {{ item.item.path }}
+      ({{ item.item.name }}) on {{ inventory_hostname }}. Complete the OOD IAPP
+      runtime section in docs/developer/08-compute-node-environment.md before
+      running playbooks/ood.yml.
+    quiet: true
+  loop: "{{ ood_compute_runtime_checks.results }}"
+  loop_control:
+    label: "{{ item.item.application }}: {{ item.item.path }}"
+
 - name: Create the OOD context mount point
   ansible.builtin.file:
     path: "{{ ood_shared_root }}"

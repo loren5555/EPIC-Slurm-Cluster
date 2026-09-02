@@ -17,6 +17,7 @@ cluster_users:
     ssh_access:
       - epic-cluster-compute-a100-01
       - epic-cluster-compute-rtx4070-01
+      - epic-cluster-compute-rtx4070-02
   - name: yinjiajie
     uid: 10001
     gid: 10001
@@ -79,6 +80,8 @@ cluster_users:
       - EPIC-RL
     ssh_access:
       - epic-cluster-compute-a100-01
+      - epic-cluster-compute-rtx4070-02
+
   - name: wangjingnan
     uid: 10007
     gid: 10007
@@ -140,6 +143,7 @@ cluster_users:
     ssh_access:
       - epic-cluster-compute-a100-01
       - epic-cluster-compute-rtx4070-01
+      - epic-cluster-compute-rtx4070-02
   - name: jingnanwang
     uid: 10999
     gid: 10999

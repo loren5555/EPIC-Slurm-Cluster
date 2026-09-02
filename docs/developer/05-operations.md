@@ -34,7 +34,8 @@ scontrol show nodes
 squeue
 ```
 
-节点状态、分区配置、`slurmctld`、`slurmd` 和 MUNGE 属于系统运维范围。节点进入 `DOWN`、`DRAIN` 或 `INVALID_REG` 时，先查看 Slurm 日志和节点通信状态，再决定恢复或维护。
+节点状态、分区配置、`slurmctld`、`slurmd` 和 MUNGE 属于系统运维范围。节点进入
+`DOWN`、`DRAIN` 或 `INVALID_REG` 时，使用[故障手册：节点状态](../troubleshooting/12-node-state.md)。
 
 ```bash
 scontrol update nodename=<node> state=drain reason="maintenance"
@@ -50,7 +51,7 @@ systemctl status epic-disk-quota-collector.timer
 ls -l /srv/epic/ood/quota
 ```
 
-控制节点 `/home` 使用根文件系统配额；A100 的 `/home` 和 `/workspace` 是独立本地文件系统。`/workspace` 是 RAID0，只保存可再生成内容。
+控制节点 `/home` 使用根文件系统配额；A100 的 `/home` 和 `/workspace` 是独立本地文件系统。A100 的 `/workspace` 由 4 块数据盘组成 RAID0，只保存可再生成内容；系统盘不属于该阵列。具体边界见[A100 节点基线](09-a100-node-baseline.md)。
 
 ## BMC（现在挂了）
 

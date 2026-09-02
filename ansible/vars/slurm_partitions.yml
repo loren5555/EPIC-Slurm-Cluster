@@ -23,3 +23,12 @@ slurm_partitions:
       - liuhongbo
       - huodongkun
     denied_users: []
+
+  - name: epic-cluster-compute-rtx4070-02
+    host: epic-cluster-compute-rtx4070-02
+    management_class: free
+    allowed_accounts: []
+    allowed_users:
+      - liuhongbo
+      - yeyuanlin
+    denied_users: []

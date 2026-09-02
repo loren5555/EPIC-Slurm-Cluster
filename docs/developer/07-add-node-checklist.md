@@ -4,10 +4,10 @@ title: 新增节点 Checklist
 parent: 开发者文档
 nav_order: 7
 ---
-
 # 新增节点 Checklist
 
-本清单面向 `epic-superadmins`，用于将一台计算节点接入 EPIC 集群。每次新增节点复制一份本清单到变更记录或 Pull Request，填写节点名、负责人和变更窗口，并逐项保留结果。不要直接在生产配置中试错。
+本清单面向 `epic-superadmins`，用于将一台计算节点接入 EPIC 集群。记录节点名、负责人
+和计划开放时间即可；验收以实验室实际可用为准，不要求工业部署式的重复证明。
 
 ## 1. 变更准备
 
@@ -19,13 +19,16 @@ nav_order: 7
 
 ## 2. 主机和运行时
 
-- [ ] 配置固定地址、DNS 或 `/etc/hosts`，确认控制节点和新节点能够按稳定主机名双向解析。
+以[计算节点环境安装](08-compute-node-environment.md)中的显式命令完成下列 Ansible 前准备，并记录实际软件版本和镜像 digest。
+
+- [ ] 按[网络与静态地址规划](11-network-address-plan.md)从对应节点类别的固定租约地址段分配地址，在路由器绑定网卡 MAC，并确认网关、VLAN DNS 以及控制节点和新节点的稳定主机名双向解析。
 - [ ] 配置时间同步，确认控制节点与新节点时间一致。
 - [ ] 建立超级管理员 SSH 访问，确认 Ansible 能使用 inventory 中的管理账户连接并提权。
 - [ ] 安装与集群兼容的 MUNGE 和 Slurm 版本，分发 MUNGE key，并确认 `munge -n | unmunge` 成功。
 - [ ] 创建 Slurm 日志与 spool 目录，确认属主、权限和磁盘空间满足现有节点约定。
-- [ ] 挂载节点需要的 `/home`、`/workspace`、`/data` 或 OOD 上下文路径；不要把本地临时盘误标为持久存储。
+- [ ] 挂载节点需要的 `/home`、`/workspace` 和 OOD 上下文路径；共享 `/data` 尚未上线，上线后按[共享存储设计](10-shared-storage.md)单独验收。不要把本地临时盘误标为持久存储。
 - [ ] GPU 节点手工安装并确认 NVIDIA 驱动、容器运行时及所需 exporter；Ansible 不负责隐式安装驱动或跨发行版软件包。
+- [ ] 按安装文档准备 OOD IAPP 运行时，确认 `/usr/local/bin/code-server`、`/usr/bin/ttyd`、`/opt/jupyterlab/bin/jupyter-lab` 和 `/opt/tensorboard/bin/tensorboard` 均可执行，并记录版本。
 
 ## 3. 仓库声明
 
@@ -39,8 +42,10 @@ nav_order: 7
 ## 4. 分阶段部署
 
 - [ ] 新节点先保持不可调度，避免配置未完成时接收用户作业。
-- [ ] 依次执行与本次变更有关的最小工作包：身份、SSH、SlurmDBD/Association、Slurm、监控、OOD 和配额；不要首先运行完整 `site.yml`。
-- [ ] 每个工作包先执行 `--syntax-check`，再执行 `--check --diff`，审阅只涉及预期主机和配置后再正式运行。
+- [ ] 先正式运行身份工作包；如果预检报同名账号的 UID/GID 不一致，使用[故障手册：UID/GID 冲突](../troubleshooting/14-identity-conflict.md)。
+- [ ] 身份收敛成功后再运行 SSH 工作包；如果报受管用户不存在，使用[故障手册：SSH 预检缺少用户](../troubleshooting/15-ssh-preflight.md)。
+- [ ] 继续依次执行 SlurmDBD/Association、Slurm、监控、OOD 和配额的最小工作包；不要首先运行完整 `site.yml`。
+- [ ] 每个工作包执行一次 `--check --diff`，审阅只涉及预期主机和配置后再正式运行。
 - [ ] 确认 `munge`、`slurmd`、`node_exporter` 以及 GPU 节点所需 exporter 正常运行。
 - [ ] 在控制节点执行 `scontrol reconfigure` 后，确认新节点资源与 host vars 一致，且没有 `INVALID_REG`、`DOWN` 或意外的分区状态。
 
@@ -49,10 +54,10 @@ nav_order: 7
 - [ ] 使用 `sinfo -N -l`、`scontrol show node <节点名>` 和 `scontrol show partition <节点名>` 检查节点、资源和分区。
 - [ ] 使用允许的测试账户提交最小 CPU 作业，确认调度、标准输出、工作目录和存储访问正常。
 - [ ] GPU 节点提交最小 GPU 作业，确认 `CUDA_VISIBLE_DEVICES`、驱动、GPU 数量和 Slurm GRES 分配一致。
-- [ ] 确认不在允许范围内的用户或 Account 无法向该分区提交作业。
-- [ ] 在 Prometheus/Grafana 中确认节点在线、标签正确且没有重复 target；GPU 节点同时确认 GPU 指标。
-- [ ] 从 OOD 确认节点入口、Interactive App、作业提交和 Remote Files 只暴露预期资源。
-- [ ] 检查 Slurm、MUNGE、OOD 和 exporter 日志，确认没有持续错误后再将节点恢复为可调度状态。
+- [ ] 在 Prometheus/Grafana 中人工确认节点在线；GPU 节点同时看一眼 GPU 指标。
+- [ ] 从 OOD 实际启动一个本次需要的 IAPP，确认节点入口、反向代理和作业提交可用；
+  该结果同时作为应用发布、运行时和基本 OOD 配置的验收，不再拆成重复代码测试。
+- [ ] 将节点恢复为可调度状态；只有实际失败时再查看对应服务日志。
 
 ## 6. 回退与交接
 
@@ -62,4 +67,4 @@ nav_order: 7
 - [ ] 更新节点资产信息、BMC 凭据保管位置和维护负责人；凭据不得写入仓库。
 - [ ] 通知管理员新节点的分区名、资源范围、允许用户或 Account，以及已知限制。
 
-相关背景见[Ansible 架构](02-ansible.md)、[系统运维](05-operations.md)和[超级管理员操作](06-superadmin.md)。
+相关背景见[Ansible 架构](02-ansible.md)、[系统运维](05-operations.md)、[超级管理员操作](06-superadmin.md)、[计算节点环境安装](08-compute-node-environment.md)、[网络与静态地址规划](11-network-address-plan.md)和[故障手册](../troubleshooting/index.md)。
