@@ -224,7 +224,95 @@ Slurm 的日志和 spool 目录必须与基准节点的属主、组和权限一�
 /var/lib/slurm/slurmd
 ```
 
-## 7. Ansible 前验收
+## 7. OOD Interactive Apps 运行时
+
+OOD 的应用目录由 `playbooks/ood.yml` 发布到控制节点，但 JupyterLab、Code
+Server、ttyd 和 TensorBoard 的进程实际由 Slurm 启动在计算节点上。因此每台会出现在
+OOD 分区菜单中的计算节点，都必须先安装相同的 IAPP 运行时集合。
+
+这里的网页 VS Code 应用使用 [code-server](https://github.com/coder/code-server)，
+不是 VS Code Remote-SSH 登录后按用户下载的 Microsoft `vscode-server`。不要把用户
+主目录中的 `~/.vscode-server` 当作系统 IAPP 运行时。
+
+先从已验收的基准节点记录版本；新节点必须使用同一组值：
+
+```bash
+TTYD_VERSION="$(dpkg-query -W -f='${Version}' ttyd)"
+JUPYTERLAB_VERSION="$(/opt/jupyterlab/bin/python -m pip show jupyterlab | awk '/^Version:/ {print $2}')"
+TENSORBOARD_VERSION="$(/opt/tensorboard/bin/python -m pip show tensorboard | awk '/^Version:/ {print $2}')"
+CODE_SERVER_VERSION="$(/usr/local/bin/code-server --version | head -n1)"
+printf '%s\n' \
+  "ttyd=${TTYD_VERSION}" \
+  "jupyterlab=${JUPYTERLAB_VERSION}" \
+  "tensorboard=${TENSORBOARD_VERSION}" \
+  "code-server=${CODE_SERVER_VERSION}"
+```
+
+将输出复制到节点变更记录，再在新节点设置相同的四个变量。先安装通用依赖；与其他
+系统软件相同，正式安装前先审阅 APT 模拟结果：
+
+```bash
+sudo apt-get update
+sudo apt-get --simulate install \
+  nfs-common openssl jq curl python3-venv "ttyd=${TTYD_VERSION}"
+sudo apt-get install \
+  nfs-common openssl jq curl python3-venv "ttyd=${TTYD_VERSION}"
+```
+
+### 7.1 JupyterLab 和 TensorBoard
+
+使用独立的系统虚拟环境，避免依赖任一用户的 Conda 或 Python 环境：
+
+```bash
+sudo python3 -m venv /opt/jupyterlab
+sudo /opt/jupyterlab/bin/pip install --upgrade pip \
+  "jupyterlab==${JUPYTERLAB_VERSION}"
+
+sudo python3 -m venv /opt/tensorboard
+sudo /opt/tensorboard/bin/pip install --upgrade pip \
+  "tensorboard==${TENSORBOARD_VERSION}"
+```
+
+升级时在基准节点验证目标版本，再将相同的版本约束应用到所有计算节点。不要直接把
+某个用户环境中的 `jupyter-lab` 或 `tensorboard` 暴露给系统 IAPP。
+
+### 7.2 Code Server
+
+历史部署使用 code-server 官方安装脚本的 standalone 方法，并将稳定入口安装为
+`/usr/local/bin/code-server`。先检查脚本计划，再正式执行：
+
+```bash
+curl --fail --silent --show-error --location https://code-server.dev/install.sh |
+  sh -s -- --dry-run --method=standalone --prefix=/usr/local \
+  --version "${CODE_SERVER_VERSION}"
+
+curl --fail --silent --show-error --location https://code-server.dev/install.sh |
+  sudo sh -s -- --method=standalone --prefix=/usr/local \
+  --version "${CODE_SERVER_VERSION}"
+```
+
+安装脚本的输出必须进入变更记录。生产节点应使用同一已验证版本；升级时先在一个保持
+`DRAIN` 的节点验证 IAPP，再推广到其他节点。IAPP 只引用稳定入口，不引用带版本号的
+解压目录。
+
+### 7.3 运行时验收与版本记录
+
+```bash
+test -x /usr/local/bin/code-server
+test -x /usr/bin/ttyd
+test -x /opt/jupyterlab/bin/jupyter-lab
+test -x /opt/tensorboard/bin/tensorboard
+
+/usr/local/bin/code-server --version
+/usr/bin/ttyd --version
+/opt/jupyterlab/bin/jupyter-lab --version
+/opt/tensorboard/bin/tensorboard --version
+```
+
+将四项版本和安装来源写入节点变更记录。`ood_compute` role 会检查上述四个稳定路径；
+任一路径缺失或不可执行时，`playbooks/ood.yml` 会在发布节点入口前失败。
+
+## 8. Ansible 前验收
 
 下列检查全部通过后，才进入[Ansible 架构](02-ansible.md)和[新增节点 Checklist](07-add-node-checklist.md)中的分阶段收敛：
 
@@ -246,6 +334,10 @@ sudo docker run --rm \
   -L
 test -x /usr/local/bin/node_exporter
 test -x /opt/nvitop-exporter/bin/nvitop-exporter
+test -x /usr/local/bin/code-server
+test -x /usr/bin/ttyd
+test -x /opt/jupyterlab/bin/jupyter-lab
+test -x /opt/tensorboard/bin/tensorboard
 ```
 
 此时 `munge` 应已启动，Docker 应可用，`slurmd`、node exporter、nvitop exporter 和 DCGM exporter 的最终配置与常驻服务仍由 Ansible 管理。

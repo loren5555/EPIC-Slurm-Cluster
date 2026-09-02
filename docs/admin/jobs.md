@@ -61,4 +61,4 @@ sprio
 4. 为长任务准备日志和断点保存；
 5. 任务完成后释放 Interactive App 和临时资源。
 
-节点 `DOWN`、`DRAIN`、Slurm 服务故障、数据库故障和日志排查转交[开发者文档](../developer/index.md)。
+节点 `DOWN`、`DRAIN`、Slurm 服务或数据库问题查看[故障手册](../troubleshooting/index.md#developer-troubleshooting)。

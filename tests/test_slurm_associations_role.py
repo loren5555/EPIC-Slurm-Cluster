@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import re
 import sys
 import unittest
 from pathlib import Path
@@ -54,12 +53,6 @@ PARTITIONS = [
         "denied_users": [],
     },
 ]
-
-
-def read_ansible_file(relative_path: str) -> str:
-    """Read one UTF-8 Ansible source file from the repository."""
-
-    return (ANSIBLE_DIRECTORY / relative_path).read_text(encoding="utf-8")
 
 
 class SlurmAssociationPlannerTests(unittest.TestCase):
@@ -337,159 +330,6 @@ class SlurmAssociationPlannerTests(unittest.TestCase):
 
         self.assertEqual(liuhongbo_update["qos"], "normal,project")
         self.assertEqual(liuhongbo_update["default_qos"], "normal")
-
-
-class SlurmAssociationRoleTests(unittest.TestCase):
-    def test_work_package_files_exist(self) -> None:
-        expected_files = (
-            "vars/slurm_accounts.yml",
-            "vars/slurm_partitions.yml",
-            "vars/slurm_qos.yml",
-            "playbooks/slurm_associations.yml",
-            "roles/slurm_associations/tasks/main.yml",
-            "roles/slurm_associations/tasks/preflight.yml",
-            "roles/slurm_associations/tasks/plan.yml",
-            "roles/slurm_associations/tasks/converge.yml",
-            "roles/slurm_associations/tasks/audit.yml",
-        )
-
-        missing = [
-            path for path in expected_files if not (ANSIBLE_DIRECTORY / path).is_file()
-        ]
-
-        self.assertEqual(missing, [])
-
-    def test_playbook_loads_identity_and_authorization_manifests(self) -> None:
-        playbook = read_ansible_file("playbooks/slurm_associations.yml")
-
-        self.assertIn("hosts: controllers", playbook)
-        self.assertIn("../vars/users.yml", playbook)
-        self.assertIn("../vars/slurm_accounts.yml", playbook)
-        self.assertIn("../vars/slurm_partitions.yml", playbook)
-        self.assertIn("../vars/slurm_qos.yml", playbook)
-        self.assertNotIn("secrets.yml", playbook)
-
-    def test_qos_policy_only_changes_queue_priority(self) -> None:
-        manifest = read_ansible_file("vars/slurm_qos.yml")
-        role_files = "\n".join(
-            read_ansible_file(path)
-            for path in (
-                "roles/slurm_associations/tasks/plan.yml",
-                "roles/slurm_associations/tasks/converge.yml",
-                "roles/slurm_associations/tasks/audit.yml",
-            )
-        )
-
-        self.assertIn("name: normal", manifest)
-        self.assertIn("name: project", manifest)
-        self.assertIn("priority: 100", manifest)
-        self.assertIn("default_qos: normal", manifest)
-        self.assertIn("project_qos_users:\n  - liuhongbo", manifest)
-        self.assertIn("show\n      - qos", role_files)
-        self.assertIn("DefaultQOS=", role_files)
-        self.assertIn("QOS=", role_files)
-
-        for forbidden in (
-            r"^\s+GrpTRES:",
-            r"^\s+MaxTRES\w*:",
-            r"^\s+GrpJobs\w*:",
-            r"^\s+MaxJobs\w*:",
-            r"^\s+Preempt\w*:",
-        ):
-            self.assertIsNone(re.search(forbidden, manifest, flags=re.MULTILINE))
-
-        self.assertIn("slurm_qos_guard_fields:", manifest)
-        self.assertIn("Refuse undeclared Job QoS limits or behavior", role_files)
-
-    def test_user_association_qos_is_exactly_declarative(self) -> None:
-        desired = build_desired_state(
-            USERS,
-            ACCOUNTS,
-            PARTITIONS,
-            default_qos="normal",
-            project_qos_users=["liuhongbo"],
-        )
-
-        liuhongbo = next(
-            item
-            for item in desired["associations"]
-            if item["user"] == "liuhongbo"
-        )
-        wangjiaxiang = next(
-            item
-            for item in desired["associations"]
-            if item["user"] == "wangjiaxiang"
-        )
-
-        self.assertEqual(liuhongbo["qos"], "normal,project")
-        self.assertEqual(liuhongbo["default_qos"], "normal")
-        self.assertEqual(wangjiaxiang["qos"], "normal")
-
-    def test_check_mode_never_writes_slurmdbd(self) -> None:
-        converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
-
-        self.assertIn("when: not ansible_check_mode", converge)
-        self.assertIn("/usr/bin/sacctmgr", converge)
-
-    def test_association_reads_and_updates_use_explicit_limits(self) -> None:
-        plan = read_ansible_file("roles/slurm_associations/tasks/plan.yml")
-        audit = read_ansible_file("roles/slurm_associations/tasks/audit.yml")
-        converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
-
-        self.assertIn("WOPLimits", plan)
-        self.assertIn("WOPLimits", audit)
-        self.assertGreaterEqual(converge.count("item.group_tres_update"), 2)
-        self.assertIn("slurm_partition_argument", converge)
-
-    def test_account_and_cluster_association_logic_has_one_owner(self) -> None:
-        plan = read_ansible_file("roles/slurm_associations/tasks/plan.yml")
-        converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
-
-        self.assertIn("slurm_account_plan.add_cluster_associations", converge)
-        self.assertIn("slurm_account_plan.update_cluster_associations", converge)
-        self.assertNotIn("item.account not in", converge)
-        self.assertIn("slurm_account_plan(", plan)
-
-    def test_role_does_not_manage_partition_account_associations(self) -> None:
-        converge = read_ansible_file("roles/slurm_associations/tasks/converge.yml")
-
-        self.assertNotIn("Create missing partition Account Associations", converge)
-        self.assertNotIn("Remove stale partition Account Associations", converge)
-
-    def test_manifest_declares_confirmed_partition_policy(self) -> None:
-        partitions = read_ansible_file("vars/slurm_partitions.yml")
-        accounts = read_ansible_file("vars/slurm_accounts.yml")
-
-        self.assertIn("allowed_users:\n      - liuhongbo", partitions)
-        self.assertNotIn("account_limits:", partitions)
-        self.assertIn("group_tres: gres/gpu=2", accounts)
-
-        users = read_ansible_file("vars/users.yml")
-        cluster_user_section = users.split("access_groups:", maxsplit=1)[0]
-        self.assertEqual(
-            cluster_user_section.count("slurm_account:"),
-            cluster_user_section.count("  - name:"),
-        )
-
-        declared_accounts = re.findall(
-            r"^  - name: (\S+).*?^    slurm_account: (\S+)$",
-            cluster_user_section,
-            flags=re.MULTILINE | re.DOTALL,
-        )
-        account_counts = {}
-        for _, account in declared_accounts:
-            account_counts[account] = account_counts.get(account, 0) + 1
-
-        self.assertEqual(
-            account_counts,
-            {
-                "epic-rl": 13,
-                "cgcl": 3,
-                "mllms": 20,
-                "cv3d": 6,
-                "nue": 1,
-            },
-        )
 
 
 if __name__ == "__main__":

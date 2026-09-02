@@ -110,13 +110,7 @@ ansible-playbook ansible/playbooks/site.yml
 
 ## 紧急恢复
 
-如果 Association 强制导致正常用户无法提交，先从 `slurm.conf` 移除 `AccountingStorageEnforce`，再执行：
-
-```bash
-scontrol reconfigure
-```
-
-不要清空 SlurmDBD 数据库、删除 Association、删除 Slurm 状态目录或修改 NVIDIA 驱动。恢复提交后保留现场日志和配置差异，先修复清单或数据库状态，再重新启用强制。
+Association 强制导致正常用户无法提交时，使用[故障手册：Association 强制恢复](../troubleshooting/index.md#association-enforcement-recovery)。
 
 ## 超级管理员日常检查
 

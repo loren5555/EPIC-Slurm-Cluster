@@ -34,7 +34,8 @@ scontrol show nodes
 squeue
 ```
 
-节点状态、分区配置、`slurmctld`、`slurmd` 和 MUNGE 属于系统运维范围。节点进入 `DOWN`、`DRAIN` 或 `INVALID_REG` 时，先查看 Slurm 日志和节点通信状态，再决定恢复或维护。
+节点状态、分区配置、`slurmctld`、`slurmd` 和 MUNGE 属于系统运维范围。节点进入
+`DOWN`、`DRAIN` 或 `INVALID_REG` 时，使用[故障手册：节点状态](../troubleshooting/index.md#node-state-failure)。
 
 ```bash
 scontrol update nodename=<node> state=drain reason="maintenance"

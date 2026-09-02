@@ -90,14 +90,7 @@ Account、Linux access group 和 SSH 主机：
    ANSIBLE_CONFIG=/srv/epic/repos/EPIC-Slurm-Cluster/ansible/ansible.cfg \
    /usr/bin/ansible-playbook \
    /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/user_onboarding.yml
-   # 此处应当观察到没有错误出现。
-
-   # 再次运行，确认配置已同步
-   sudo /usr/bin/env \
-   ANSIBLE_CONFIG=/srv/epic/repos/EPIC-Slurm-Cluster/ansible/ansible.cfg \
-   /usr/bin/ansible-playbook \
-   /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/user_onboarding.yml
-   # 此次运行应观察到 changed=0；如果连续两次仍不为 0，需检查配置是否正确。
+   # 此处应当观察到没有错误出现；随后实际登录并提交一次任务验收。
    ```
 5. 为用户创建 OOD 密码。用户名必须与Linux用户名完全一致才能正确获取访问权限：
 

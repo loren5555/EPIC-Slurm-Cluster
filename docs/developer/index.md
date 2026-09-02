@@ -18,4 +18,4 @@ has_children: true
 7. [新增节点 Checklist](07-add-node-checklist.md)：计算节点从准备、声明到验收和交接的操作清单。
 8. [计算节点环境安装](08-compute-node-environment.md)：Ubuntu GPU 计算节点在 Ansible 前的网络、Slurm、MUNGE、Docker 和 exporter 环境准备。
 
-推荐阅读顺序是先看 source of truth 和发布流程，再看具体 role 或应用。运行行为以 `ansible/` 和 `apps/` 为准，设计决策记录位于 `docs/superpowers/specs/`。
+推荐阅读顺序是先看 source of truth 和发布流程，再看具体 role 或应用。已知错误统一查看[故障手册](../troubleshooting/index.md#developer-troubleshooting)。运行行为以 `ansible/` 和 `apps/` 为准，设计决策记录位于 `docs/superpowers/specs/`。

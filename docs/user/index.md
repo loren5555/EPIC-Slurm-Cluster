@@ -18,4 +18,4 @@ has_children: true
 
 ## 常见故障查询
 
-7. [排障](99-troubleshooting.md)：任务排队、会话失败、GPU 和磁盘问题。
+任务排队、会话失败、GPU 和磁盘问题统一查看[故障手册](../troubleshooting/index.md#user-troubleshooting)。

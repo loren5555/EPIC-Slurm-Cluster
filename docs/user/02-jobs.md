@@ -367,26 +367,4 @@ srun \
 
 退出交互 shell 后，资源会释放。长时间运行的程序应写入 `sbatch` 脚本，而不是保持一个无人值守的 `srun` 会话。
 
-## 常见问题
-
-### 作业一直排队
-
-运行 `squeue -u "$USER"` 和 `scontrol show job <job-id>`，确认目标分区、GPU 数量、内存和 CPU 申请合理。GPU 资源不足时只能等待或调整申请量，不能在作业内自行占用其他 GPU。
-
-### 作业马上失败
-
-优先检查：
-
-1. `cd` 目录是否存在；
-2. Python/Conda 环境路径是否正确；
-3. 输入文件是否存在且有权限读取；
-4. 日志中的最后一条错误；
-5. `sacct` 的 `ExitCode` 和 `State`。
-
-### 找不到 GPU
-
-确认脚本包含 `#SBATCH --gres=gpu:N`，并且提交到了 GPU 主机分区。在作业内运行：
-
-```bash
-nvidia-smi -L
-```
+作业排队、立即失败或 GPU 不可见时，查看[故障手册的用户问题](../troubleshooting/index.md#user-troubleshooting)。
