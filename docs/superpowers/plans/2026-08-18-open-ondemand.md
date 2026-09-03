@@ -30,7 +30,8 @@ Expected: FAIL because the OOD variables, playbook, and roles do not exist.
 
 - [ ] **Step 3: Add the variables and ordered playbook**
 
-Declare `ood_server_address: 10.17.207.105`, `/srv/epic/ood`, 32 hours, 30-day
+Declare `ood_server_address: epic-cluster-controller-01`,
+`ood_server_ip_addresses: [222.20.99.125]`, `/srv/epic/ood`, 32 hours, 30-day
 cleanup, port 9301, application names, and stable paths. Run controller roles
 before compute mounts, and import `ood.yml` after monitoring in `site.yml`.
 

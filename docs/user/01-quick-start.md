@@ -12,7 +12,7 @@ nav_order: 1
 如果实验室 DNS 尚未配置，在本机 hosts 文件中加入控制节点地址和主机名。地址变化时以管理员通知为准：
 
 ```text
-10.17.207.105 epic-cluster-controller-01
+222.20.99.125 epic-cluster-controller-01
 ```
 
 Linux/macOS 修改 `/etc/hosts`；Windows 修改 `C:\Windows\System32\drivers\etc\hosts`。然后打开 [Open OnDemand](https://epic-cluster-controller-01:8443/)，使用 OOD 独立密码登录。

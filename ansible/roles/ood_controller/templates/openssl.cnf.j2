@@ -14,3 +14,6 @@ extendedKeyUsage = serverAuth
 
 [alternative_names]
 DNS.1 = {{ ood_server_address }}
+{% for address in ood_server_ip_addresses %}
+IP.{{ loop.index }} = {{ address }}
+{% endfor %}

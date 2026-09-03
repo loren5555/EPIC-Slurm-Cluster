@@ -1,5 +1,9 @@
 ---
 servername: "{{ ood_server_address }}"
+server_aliases:
+{% for address in ood_server_ip_addresses %}
+  - "{{ address }}"
+{% endfor %}
 listen_addr_port: "{{ ood_https_port }}"
 port: "{{ ood_https_port }}"
 

@@ -1,7 +1,9 @@
 ---
-# Users reach the portal through this stable controller hostname. Each client
-# must resolve it through DNS or a local hosts entry.
+# The stable controller hostname remains the portal's canonical address.
 ood_server_address: epic-cluster-controller-01
+# Fixed addresses also work directly through Apache aliases and certificate SANs.
+ood_server_ip_addresses:
+  - "222.20.99.125"
 ood_https_port: 8443
 
 # Batch Connect and Job Composer exchange their context through this one small
