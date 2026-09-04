@@ -2,6 +2,7 @@
 - name: Inspect required OOD interactive application runtimes
   ansible.builtin.stat:
     path: "{{ item.path }}"
+    follow: true
   loop: "{{ ood_compute_runtime_executables }}"
   loop_control:
     label: "{{ item.application }}: {{ item.path }}"
