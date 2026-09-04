@@ -5,7 +5,7 @@ EPIC 是一个以 Open OnDemand 为网页入口、Slurm 为任务调度器的实
 ## 从这里开始
 
 - [在线文档](https://loren5555.github.io/EPIC-Slurm-Cluster/)：按用户、管理员、开发者和故障手册分类。
-- [新在线文档](https://loren5555.github.io/EPIC-Slurm-Cluster)：按用户、管理员、开发者和故障手册分类。
+- [新在线文档](https://effieguoxufei.github.io/EPIC-Slurm-Cluster/)：按用户、管理员、开发者和故障手册分类。
 - [仓库结构与开发说明](https://loren5555.github.io/EPIC-Slurm-Cluster/developer/)：修改 Ansible 或 OOD 应用前先阅读。
 - [提交问题或需求](https://github.com/loren5555/EPIC-Slurm-Cluster/issues/new/choose)：请附上复现步骤、任务信息和必要的日志片段。
 
