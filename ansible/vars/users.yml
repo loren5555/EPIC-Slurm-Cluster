@@ -144,6 +144,19 @@ cluster_users:
       - epic-cluster-compute-a100-01
       - epic-cluster-compute-rtx4070-01
       - epic-cluster-compute-rtx4070-02
+  - name: bianjiaze
+    uid: 10013
+    gid: 10013
+    slurm_account: epic-rl
+    home: /home/bianjiaze
+    shell: /bin/bash
+    groups:
+      - EPIC-RL
+    ssh_access:
+      - epic-cluster-compute-a100-01
+      - epic-cluster-compute-rtx4070-01
+      - epic-cluster-compute-rtx4070-02
+
   - name: jingnanwang
     uid: 10999
     gid: 10999
