@@ -467,6 +467,16 @@ cluster_users:
       - nue
     ssh_access:
       - epic-cluster-compute-a100-01
+  - name: wangjiong
+    uid: 19001
+    gid: 19001
+    slurm_account: individual
+    home: /home/wangjiong
+    shell: /bin/bash
+    groups:
+      - individual
+    ssh_access:
+      - epic-cluster-compute-a100-01
 # Access groups contain stable names and GIDs only. Exact membership is derived
 # from cluster_users[].groups so it is maintained in one place.
 access_groups:
@@ -480,3 +490,5 @@ access_groups:
     gid: 20003
   - name: nue
     gid: 20004
+  - name: individual
+    gid: 20009
