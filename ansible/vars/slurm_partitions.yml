@@ -18,17 +18,15 @@ slurm_partitions:
   - name: epic-cluster-compute-rtx4070-01
     host: epic-cluster-compute-rtx4070-01
     management_class: free
-    allowed_accounts: []
-    allowed_users:
-      - liuhongbo
-      - huodongkun
+    allowed_accounts:
+      - epic-rl
+    allowed_users: []
     denied_users: []
 
   - name: epic-cluster-compute-rtx4070-02
     host: epic-cluster-compute-rtx4070-02
     management_class: free
-    allowed_accounts: []
-    allowed_users:
-      - liuhongbo
-      - yeyuanlin
+    allowed_accounts:
+      - epic-rl
+    allowed_users: []
     denied_users: []

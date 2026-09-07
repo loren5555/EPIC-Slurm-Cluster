@@ -35,11 +35,11 @@ Linux 私有组用于文件所有权，Slurm Account 用于调度和使用统计
 Account、Linux access group 和 SSH 主机：
 
 ```yaml
-- name: exampleuser
+- name: <exampleuser>
   uid: 10099
   gid: 10099
   slurm_account: epic-rl
-  home: /home/exampleuser
+  home: /home/<exampleuser>
   shell: /bin/bash
   groups:
     - EPIC-RL
@@ -76,14 +76,14 @@ Account、Linux access group 和 SSH 主机：
 4. 运行 `user_onboarding.yml`，一次完成身份、SSH、Slurm Association、磁盘配额
    和 OOD 配置：
 
-   ```Shell
+   ```bash
    # 运行检查，避免错误
    sudo /usr/bin/env \
    ANSIBLE_CONFIG=/srv/epic/repos/EPIC-Slurm-Cluster/ansible/ansible.cfg \
    /usr/bin/ansible-playbook \
    /srv/epic/repos/EPIC-Slurm-Cluster/ansible/playbooks/user_onboarding.yml \
    --check
-   # 此处应当观察到没有错误出现。
+   # 此处应当观察到没有出现语法错误。提示ssh连接失败是正常的，因为还没有创建用户。
 
    # 运行脚本，同步配置
    sudo /usr/bin/env \
@@ -94,7 +94,7 @@ Account、Linux access group 和 SSH 主机：
    ```
 5. 为用户创建 OOD 密码。用户名必须与Linux用户名完全一致才能正确获取访问权限：
 
-   ```Shell
+   ```bash
    sudo /usr/bin/htpasswd /etc/ood/auth/htpasswd <username>
    ```
 
