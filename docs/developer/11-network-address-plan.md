@@ -108,6 +108,3 @@ DHCP 动态分配
    连接网络后，再确认地址、`/24` 掩码、`.251` 默认网关和 VLAN DNS 均已生效；该过渡
    状态不视为链路故障。
 5. 使用预留地址或调整任何范围时，必须先更新本页，再修改设备配置和 inventory。
-
-架构背景、物理拓扑、NAT 和故障边界见
-[EPIC 集群双网口与出口设计](../superpowers/specs/2026-08-05-epic-cluster-network-design.md)。
