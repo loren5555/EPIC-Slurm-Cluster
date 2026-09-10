@@ -42,8 +42,8 @@ echo "CPU 核数: ${SLURM_CPUS_PER_TASK}"
 echo "可见 GPU: ${CUDA_VISIBLE_DEVICES:-未设置}"
 
 # 按项目修改环境初始化。示例：
-# source /workspace/envs/my-project/bin/activate
-# module load cuda
+# 任务以系统身份运行，不会初始化conda，需要手动激活环境
+source /usr/local/miniconda3/bin/activate epic_rl
 
 # 将下面命令替换为实际程序。使用 srun 可继承 Slurm 分配的 CPU/GPU 资源。
 nvidia-smi --query-gpu=index,name,memory.total,memory.used --format=csv
