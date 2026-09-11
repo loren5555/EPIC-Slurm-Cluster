@@ -1,0 +1,5 @@
+---
+name: epymarl_based_training
+host: epic
+notes: Template for training an algorithm in epymarl_based project.
+script: job.sh
