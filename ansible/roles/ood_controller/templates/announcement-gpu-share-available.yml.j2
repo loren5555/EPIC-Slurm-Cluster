@@ -1,11 +1,13 @@
 ---
-id: 00-gpu-share-available
+id: 00-cpu-allocation-policy-20260911
 type: info
 dismissible: true
 msg: |
-  ### GPU 共享与 CPU 超分已开放
+  ### CPU 超分已关闭，GPU 共享继续开放
 
-  小型 GPU 任务可以在提交表单中选择 **Shared GPU**，不必占用一整张 GPU。
-  CPU 超分变为可选项，默认开启超分；对 CPU 性能敏感的任务可以不启用。
+  CPU 按核分配，同一个 core 不会同时分配给多个 Slurm 作业；多个作业仍可在同一节点运行。
+  OOD 已移除 CPU 超分开关，旧提交脚本请删除 `#SBATCH --oversubscribe`。
+  CPU 的 Fair-share 计费权重从 0.05 提高到 0.1，请按实际需要申请 CPU。
+  小型 GPU 任务仍可选择 **Shared GPU**。
 
-  [具体查看](https://loren5555.github.io/EPIC-Slurm-Cluster/user/04-shared-resources.html)
+  [资源申请说明](https://loren5555.github.io/EPIC-Slurm-Cluster/user/04-shared-resources.html)

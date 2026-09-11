@@ -15,8 +15,6 @@
 #SBATCH --gres=gpu:1
 # 小任务若只需共享 GPU：注释上一条 gpu:1，并把本行开头改为单个 #。
 ##SBATCH --gres=shard:1
-# 若接受 CPU 超分，把本行开头改为单个 #；需要稳定 CPU 性能时保持原样。
-##SBATCH --oversubscribe
 # 最长运行时间，格式为 DD-HH:MM:SS 或 HH:MM:SS。
 #SBATCH --time=08:00:00
 # 标准输出日志；%x 是作业名，%j 是作业号。

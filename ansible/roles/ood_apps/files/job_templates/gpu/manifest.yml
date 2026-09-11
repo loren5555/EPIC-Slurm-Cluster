@@ -2,4 +2,4 @@
 name: GPU training job
 host: epic
 script: job.sh
-notes: Ready-to-edit GPU training script with full-GPU, shared-GPU, CPU oversubscription, logging, and runtime diagnostics.
+notes: Ready-to-edit GPU training script with full-GPU, shared-GPU, logging, and runtime diagnostics.

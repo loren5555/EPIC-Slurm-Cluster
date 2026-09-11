@@ -17,8 +17,6 @@
 ##SBATCH --gres=gpu:1
 # 每个子任务只需共享 GPU 时，把本行开头改为单个 #；不要同时启用 gpu 与 shard。
 ##SBATCH --gres=shard:1
-# 若接受 CPU 超分，把本行开头改为单个 #；需要稳定 CPU 性能时保持原样。
-##SBATCH --oversubscribe
 # 每个数组子任务的最长运行时间，格式为 DD-HH:MM:SS 或 HH:MM:SS。
 #SBATCH --time=04:00:00
 # 标准输出日志；%x 是作业名称，%A 是数组主作业号，%a 是数组下标。

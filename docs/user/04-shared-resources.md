@@ -1,14 +1,13 @@
 ---
 layout: default
-title: GPU 共享与 CPU 超分
+title: GPU 共享与 CPU 分配
 parent: 用户文档
 nav_order: 4
 ---
 
-# GPU 共享与 CPU 超分
+# GPU 共享与 CPU 分配
 
-Slurm支持将 GPU 划分为逻辑份额（GPU shard），也支持让多个作业共享 CPU
-core。它们适合资源需求较小、希望更快启动的任务，但都可能影响性能稳定性。
+集群支持将 GPU 划分为逻辑份额（GPU shard）。CPU 超分已关闭，Slurm 按 CPU core 分配资源，同一个 core 不会同时分配给多个作业。
 
 ## Shared GPU
 
@@ -61,48 +60,34 @@ Shared GPU 是 Slurm 管理的逻辑 GPU 份额。一个 shard 只会分配给�
 运行时可以使用 `nvidia-smi -L` 检查作业内可见的 GPU。程序是否支持在共享
 GPU 上运行，仍取决于程序自身的显存和计算资源需求。
 
-## CPU 超分
+## CPU 分配
 
-### 什么是CPU超分
+所有分区关闭 CPU 超分。多个作业仍可以在同一节点并行，但使用各自分配的 CPU
+core；GPU shard 的共享方式不受影响。
 
-CPU 超分允许多个作业共享同一个 CPU core。当同一core上存在其他工作负载时，任务
-可能变慢或出现性能波动。
+OOD 表单只需填写 **CPU cores**，不再提供 CPU 超分开关。轻量 debug 可以申请
+1–2 个 CPU，计算任务按实际并行度申请；资源不足时等待调度。
 
-适合开启 CPU 超分的场景包括：
-
-- GPU 计算占主导、CPU 只负责少量数据准备；
-- 调试、交互式开发和短测试任务；
-- 更看重尽快启动，而不是 CPU 性能。
-
-CPU 性能敏感的任务，例如 CPU 密集型预处理、编译、科学计算或性能测试，
-应关闭 CPU 超分。
-
-### 在 OOD 中设置
-
-表单中的 **Accept shared CPU cores** 选项用于控制 CPU 超分：
-
-- 默认开启，任务会带上 `--oversubscribe`，可能更快启动；
-- 取消勾选后，任务不接受共享 CPU core，CPU 性能通常更稳定，但可能需要
-  等待更久。
-
-### 在 Slurm 脚本中设置
-
-在脚本中显式加入以下行即可接受 CPU 超分：
+Slurm 脚本只需声明所需 CPU 数量，不要添加 `--oversubscribe`：
 
 ```bash
 #SBATCH --cpus-per-task=4
-#SBATCH --oversubscribe
 ```
 
-不写 `--oversubscribe` 时，作业不会主动接受共享 CPU core。
+旧脚本应删除 `#SBATCH --oversubscribe`。不要用作业级
+`scontrol update ... OverSubscribe=NO` 代替删除选项；在当前控制器版本中，
+显式设置该值会要求空闲节点，与默认的 `OverSubscribe=OK` 不同。
+修改脚本不会更新已经提交的作业。
+
+这里的独立分配针对 Slurm 作业，不代表对普通 SSH 进程或整机性能作出保证。
 
 ## 选择建议
 
 | 需求 | 建议 |
 | --- | --- |
-| 小模型推理或调试，GPU 需求较低 | Shared GPU；CPU 不敏感时可开启超分 |
-| 长时间训练或需要稳定吞吐 | 完整 GPU；CPU 敏感时关闭超分 |
-| 只做 CPU 计算 | 不申请 GPU；根据 CPU 负载决定是否超分 |
+| 小模型推理或调试，GPU 需求较低 | Shared GPU；按调试需要申请少量 CPU |
+| 长时间训练或需要稳定吞吐 | 完整 GPU；按实际并行度申请 CPU |
+| 只做 CPU 计算 | 不申请 GPU；按实际并行度申请 CPU |
 | 需要整张 GPU 的显存或稳定性能 | 使用 `gpu:1`，不要使用 shard |
 
 无论选择哪种资源，都应先提交一个短测试任务，确认显存、运行时间和程序

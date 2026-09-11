@@ -21,7 +21,7 @@ nav_order: 9
 | Slurm 可调度内存 | 1,024,000 MiB |
 | GPU | 8 × NVIDIA A100 40 GB |
 | 每张 GPU shard | 4 |
-| CPU 超分 | 作业显式接受时，每 core 最多 4 个作业 |
+| CPU 超分 | 关闭，每 core 最多分配给 1 个 Slurm 作业 |
 
 机器可读值位于
 `ansible/inventory/host_vars/epic-cluster-compute-a100-01.yml`。内存申请用于展示和
